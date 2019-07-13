@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="VcsDirectoryMappings">
+    <mapping directory="$PROJECT_DIR$" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/fetchdeps/al2o3_catch2-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/fetchdeps/al2o3_cmath-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/fetchdeps/al2o3_memory-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/fetchdeps/al2o3_os-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/fetchdeps/al2o3_platform-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/fetchdeps/al2o3_stb-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/fetchdeps/al2o3_syoyo-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/fetchdeps/al2o3_tinystl-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/fetchdeps/al2o3_vfile-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/fetchdeps/data_bufferutils-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/fetchdeps/gfx_image_impl_basic-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/fetchdeps/gfx_image_interface-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/fetchdeps/gfx_imageformat-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/fetchdeps/gfx_imageio-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/fetchdeps/lua_al2o3_os-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/fetchdeps/lua_base5.3-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/fetchdeps/lua_image-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/fetchdeps/tiny_ktx-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/fetchdeps/utils_misccpp-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/fetchdeps/utils_simple_logmanager-src" vcs="Git" />
+  </component>
+</project>
