@@ -24,6 +24,8 @@
     <mapping directory="$PROJECT_DIR$/fetchdeps/lua_base5.3-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/fetchdeps/lua_image-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/fetchdeps/tiny_ktx-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/fetchdeps/utils_gameappshell_impl_basic-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/fetchdeps/utils_gameappshell_interface-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/fetchdeps/utils_misccpp-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/fetchdeps/utils_simple_logmanager-src" vcs="Git" />
   </component>

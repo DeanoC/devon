@@ -31,6 +31,8 @@ set(Deps
 		lua_image
 		utils_simple_logmanager
 		utils_misccpp
+		utils_gameappshell_interface
+		utils_gameappshell_impl_basic
 		)
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/out_libs)
@@ -39,5 +41,4 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/out_bin)
 
 set(LIB_BASE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/src/libs/)
 
-ADD_CONSOLE_APP(${ProjectName} "${Src}" "${Deps}")
-target_include_directories(${ProjectName} PRIVATE lua-5.3.5/src/)
+ADD_GUI_APP(${ProjectName} "${Src}" "${Deps}" utils_gameappshell_interface)
