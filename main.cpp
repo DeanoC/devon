@@ -34,7 +34,7 @@ TheForge_SwapChainDesc swapChainDesc;
 TheForge_RenderTargetDesc renderTargetDesc;
 TheForge_RenderTargetDesc depthRTDesc;
 
-static void GameAppShellToTheForge_WindowsDesc(TheForge_WindowsDesc& windowDesc) {
+static void GameAppShellToTheForge_WindowsDesc(TheForge_WindowsDesc &windowDesc) {
 	GameAppShell_WindowDesc gasWindowDesc;
 	GameAppShell_WindowGetCurrentDesc(&gasWindowDesc);
 
@@ -111,36 +111,109 @@ static bool AddShader() {
 	TheForge_LoadShader(renderer, &basicShader, &shader);
 */
 
-	VFile::ScopedFile file = VFile::File::FromFile("@colour.hlsl",Os_FM_Read);
+	char *vtxt = nullptr;
+	char *ftxt = nullptr;
 
-	size_t const fileSize = file->Size();
-	char* txt = (char*) MEMORY_MALLOC(fileSize+1);
-	file->Read(txt, fileSize);
-	txt[fileSize] = 0;
-
-	ShaderCompiler_Output out;
-	memset(&out, 0, sizeof(ShaderCompiler_Output));
-
-	bool  okay = ShaderCompiler_CompileShader("colour.hlsl",
-			ShaderCompiler_LANG_HLSL,
-			ShaderCompiler_ST_FragmentShader,
-			txt,
-			"main",
-			ShaderCompiler_OPT_None,
-			ShaderCompiler_OT_MSL_OSX,
-			&out);
-	if(okay) {
-
+	char const* const vertName = "passthrough.hlsl";
+	char const* const fragName = "colour.hlsl";
+	{
+		VFile::ScopedFile file = VFile::File::FromFile(vertName, Os_FM_Read);
+		if(!file) return false;
+		size_t const fileSize = file->Size();
+		if(fileSize == 0) return false;
+		vtxt = (char *) MEMORY_MALLOC(fileSize + 1);
+		file->Read(vtxt, fileSize);
+		vtxt[fileSize] = 0;
 	}
-	MEMORY_FREE((void*)out.log);
-	MEMORY_FREE((void*)out.shader);
+	{
+		VFile::ScopedFile file = VFile::File::FromFile(fragName, Os_FM_Read);
+		if(!file) return false;
+		size_t const fileSize = file->Size();
+		if(fileSize == 0) return false;
+		ftxt = (char *) MEMORY_MALLOC(fileSize + 1);
+		file->Read(ftxt, fileSize);
+		ftxt[fileSize] = 0;
+	}
+	ShaderCompiler_Output vout;
+	memset(&vout, 0, sizeof(ShaderCompiler_Output));
+	ShaderCompiler_Output fout;
+	memset(&fout, 0, sizeof(ShaderCompiler_Output));
+
+	{
+		bool okay = ShaderCompiler_CompileShader(
+				vertName,
+				ShaderCompiler_LANG_HLSL,
+				ShaderCompiler_ST_VertexShader,
+				vtxt,
+				"main",
+				ShaderCompiler_OPT_None,
+#if AL2O3_PLATFORM == AL2O3_PLATFORM_APPLE_MAC
+				ShaderCompiler_OT_MSL_OSX,
+#elif AL2O3_PLATFORM == AL2O3_PLATFORM_WINDOWS
+				ShaderCompiler_OT_DXIL,
+#endif
+				&vout);
+		if (okay) {
+			if (vout.log != nullptr) {
+				LOGWARNINGF("Shader compiler : Warnings %s", vout.log);
+			}
+		} else {
+			if (vout.log != nullptr) {
+				LOGERRORF("Shader compiler : Errors %s", vout.log);
+			}
+		}
+	}
+
+	{
+		bool okay = ShaderCompiler_CompileShader(
+				fragName,
+				ShaderCompiler_LANG_HLSL,
+				ShaderCompiler_ST_FragmentShader,
+				ftxt,
+				"main",
+				ShaderCompiler_OPT_None,
+#if AL2O3_PLATFORM == AL2O3_PLATFORM_APPLE_MAC
+				ShaderCompiler_OT_MSL_OSX,
+#elif AL2O3_PLATFORM == AL2O3_PLATFORM_WINDOWS
+				ShaderCompiler_OT_DXIL,
+#endif
+				&fout);
+		if (okay) {
+			if (fout.log != nullptr) {
+				LOGWARNINGF("Shader compiler : Warnings %s", fout.log);
+			}
+		} else {
+			if (fout.log != nullptr) {
+				LOGERRORF("Shader compiler : Errors %s", fout.log);
+			}
+		}
+	}
+
+	TheForge_BinaryShaderDesc bdesc;
+	bdesc.stages = (TheForge_ShaderStage) (TheForge_SS_FRAG | TheForge_SS_VERT);
+	bdesc.vert.byteCode = (char*) vout.shader;
+	bdesc.vert.byteCodeSize = vout.shaderSize;
+	bdesc.vert.entryPoint = "main";
+	bdesc.vert.source = vtxt;
+	bdesc.frag.byteCode = (char*) fout.shader;
+	bdesc.frag.byteCodeSize = fout.shaderSize;
+	bdesc.frag.entryPoint = "main";
+	bdesc.frag.source = ftxt;
+	TheForge_AddShaderBinary(renderer, &bdesc, &shader);
+
+	MEMORY_FREE((void *) vout.log);
+	MEMORY_FREE((void *) vout.shader);
+	MEMORY_FREE((void *) fout.log);
+	MEMORY_FREE((void *) fout.shader);
+	MEMORY_FREE(vtxt);
+	MEMORY_FREE(ftxt);
 
 	return shader;
 }
 
 static bool AddRootSignature() {
-	TheForge_ShaderHandle     shaders[] { shader };
-	TheForge_RootSignatureDesc rootDesc {};
+	TheForge_ShaderHandle shaders[]{shader};
+	TheForge_RootSignatureDesc rootDesc{};
 	rootDesc.staticSamplerCount = 0;
 	rootDesc.shaderCount = 1;
 	rootDesc.pShaders = shaders;
@@ -158,7 +231,7 @@ static bool AddDescriptorBinder() {
 	return descriptorBinder;
 }
 static bool AddRasterizerState() {
-	TheForge_RasterizerStateDesc rasterizerStateDesc {};
+	TheForge_RasterizerStateDesc rasterizerStateDesc{};
 
 	rasterizerStateDesc.cullMode = TheForge_CM_NONE;
 	TheForge_AddRasterizerState(renderer, &rasterizerStateDesc, &rasterizerState);
@@ -167,7 +240,7 @@ static bool AddRasterizerState() {
 }
 
 static bool AddDepthState() {
-	TheForge_DepthStateDesc depthStateDesc {};
+	TheForge_DepthStateDesc depthStateDesc{};
 	depthStateDesc.depthTest = true;
 	depthStateDesc.depthWrite = true;
 	depthStateDesc.depthFunc = TheForge_CMP_LEQUAL;
@@ -188,7 +261,7 @@ static bool AddTriangle() {
 	};
 
 	uint64_t triVertsDataSize = 3 * 6 * sizeof(float);
-	TheForge_BufferLoadDesc triVbDesc {};
+	TheForge_BufferLoadDesc triVbDesc{};
 	triVbDesc.mDesc.mDescriptors = TheForge_DESCRIPTOR_TYPE_VERTEX_BUFFER;
 	triVbDesc.mDesc.mMemoryUsage = TheForge_RMU_GPU_ONLY;
 	triVbDesc.mDesc.mSize = triVertsDataSize;
@@ -198,7 +271,7 @@ static bool AddTriangle() {
 	TheForge_AddBuffer(&triVbDesc, true);
 
 	uint64_t triIndexDataSize = 3 * sizeof(uint16_t);
-	TheForge_BufferLoadDesc triIbDesc {};
+	TheForge_BufferLoadDesc triIbDesc{};
 	triIbDesc.mDesc.mDescriptors = TheForge_DESCRIPTOR_TYPE_INDEX_BUFFER;
 	triIbDesc.mDesc.mMemoryUsage = TheForge_RMU_GPU_ONLY;
 	triIbDesc.mDesc.mSize = triIndexDataSize;
@@ -214,7 +287,7 @@ static bool AddTriangle() {
 
 static bool AddPipeline() {
 
-	TheForge_VertexLayout vertexLayout {};
+	TheForge_VertexLayout vertexLayout{};
 	vertexLayout.attribCount = 2;
 	vertexLayout.attribs[0].semantic = TheForge_SS_POSITION;
 	vertexLayout.attribs[0].format = TheForge_IF_RGB32F;
@@ -227,10 +300,10 @@ static bool AddPipeline() {
 	vertexLayout.attribs[1].location = 1;
 	vertexLayout.attribs[1].offset = 3 * sizeof(float);
 
-	TheForge_PipelineDesc desc {};
+	TheForge_PipelineDesc desc{};
 	desc.type = TheForge_PT_GRAPHICS;
 
-	TheForge_GraphicsPipelineDesc& pipelineSettings = desc.graphicsDesc;
+	TheForge_GraphicsPipelineDesc &pipelineSettings = desc.graphicsDesc;
 	pipelineSettings.primitiveTopo = TheForge_PT_TRI_LIST;
 	pipelineSettings.renderTargetCount = 1;
 	pipelineSettings.depthState = depthState;
@@ -453,7 +526,7 @@ static void Abort() {
 int main(int argc, char const *argv[]) {
 	auto logger = SimpleLogManager_Alloc();
 
-	GameAppShell_Shell* shell = GameAppShell_Init();
+	GameAppShell_Shell *shell = GameAppShell_Init();
 	shell->onInitCallback = &Init;
 	shell->onDisplayLoadCallback = &Load;
 	shell->onDisplayUnloadCallback = &Unload;
