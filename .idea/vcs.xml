@@ -15,11 +15,15 @@
     <mapping directory="$PROJECT_DIR$/fetchdeps/al2o3_tinystl-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/fetchdeps/al2o3_vfile-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/fetchdeps/data_bufferutils-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/fetchdeps/gfx_glslang-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/fetchdeps/gfx_image_impl_basic-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/fetchdeps/gfx_image_interface-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/fetchdeps/gfx_imageformat-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/fetchdeps/gfx_imageio-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/fetchdeps/gfx_shaderc-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/fetchdeps/gfx_spirvcross-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/fetchdeps/gfx_spirvheaders-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/fetchdeps/gfx_spirvtools-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/fetchdeps/gfx_theforge-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/fetchdeps/lua_al2o3_os-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/fetchdeps/lua_base5.3-src" vcs="Git" />

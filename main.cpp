@@ -3,12 +3,7 @@
 #include "utils_gameappshell/gameappshell.h"
 #include "utils_simple_logmanager/logmanager.h"
 
-// TODO TMP still bringing up binary shader support, so far the triangle is metal only
-#if AL2O3_PLATFORM == AL2O3_PLATFORM_APPLE_MAC
-#define DO_TRIANGLE 1
-#else
 #define DO_TRIANGLE 0
-#endif
 
 const uint32_t gImageCount = 3;
 uint32_t gFrameIndex = 0;

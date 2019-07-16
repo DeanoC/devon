@@ -26,7 +26,7 @@ set(Deps
 		gfx_image_impl_basic
 		gfx_imageio
 		gfx_theforge
-		gfx_spirvcross
+		gfx_shaderc
 		lua_base5.3
 		lua_al2o3_os
 		lua_image
