@@ -21,6 +21,7 @@
     <mapping directory="$PROJECT_DIR$/fetchdeps/gfx_imageformat-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/fetchdeps/gfx_imageio-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/fetchdeps/gfx_shaderc-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/fetchdeps/gfx_shadercompiler-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/fetchdeps/gfx_spirvcross-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/fetchdeps/gfx_spirvheaders-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/fetchdeps/gfx_spirvtools-src" vcs="Git" />

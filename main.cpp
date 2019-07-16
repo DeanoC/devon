@@ -2,8 +2,10 @@
 #include "gfx_theforge/theforge.h"
 #include "utils_gameappshell/gameappshell.h"
 #include "utils_simple_logmanager/logmanager.h"
+#include "gfx_shadercompiler/compiler.h"
+#include "al2o3_vfile/vfile.hpp"
 
-#define DO_TRIANGLE 0
+#define DO_TRIANGLE 1
 
 const uint32_t gImageCount = 3;
 uint32_t gFrameIndex = 0;
@@ -100,12 +102,38 @@ static bool AddDepthBuffer() {
 
 static bool AddShader() {
 
+	/*
 	TheForge_ShaderLoadDesc basicShader = {};
 	basicShader.target = TheForge_ST_5_1;
 	basicShader.stages[0] = { "passthrough.vert", NULL, 0, TheForge_FSR_SrcShaders };
 	basicShader.stages[1] = { "colour.frag", NULL, 0, TheForge_FSR_SrcShaders };
 
 	TheForge_LoadShader(renderer, &basicShader, &shader);
+*/
+
+	VFile::ScopedFile file = VFile::File::FromFile("@colour.hlsl",Os_FM_Read);
+
+	size_t const fileSize = file->Size();
+	char* txt = (char*) MEMORY_MALLOC(fileSize+1);
+	file->Read(txt, fileSize);
+	txt[fileSize] = 0;
+
+	ShaderCompiler_Output out;
+	memset(&out, 0, sizeof(ShaderCompiler_Output));
+
+	bool  okay = ShaderCompiler_CompileShader("colour.hlsl",
+			ShaderCompiler_LANG_HLSL,
+			ShaderCompiler_ST_FragmentShader,
+			txt,
+			"main",
+			ShaderCompiler_OPT_None,
+			ShaderCompiler_OT_MSL_OSX,
+			&out);
+	if(okay) {
+
+	}
+	MEMORY_FREE((void*)out.log);
+	MEMORY_FREE((void*)out.shader);
 
 	return shader;
 }
