@@ -178,11 +178,11 @@ static bool AddShader() {
 	TheForge_BinaryShaderDesc bdesc;
 	bdesc.stages = (TheForge_ShaderStage) (TheForge_SS_FRAG | TheForge_SS_VERT);
 	bdesc.vert.byteCode = (char*) vout.shader;
-	bdesc.vert.byteCodeSize = vout.shaderSize;
+	bdesc.vert.byteCodeSize = (uint32_t)vout.shaderSize;
 	bdesc.vert.entryPoint = "main";
 	bdesc.vert.source = vtxt;
 	bdesc.frag.byteCode = (char*) fout.shader;
-	bdesc.frag.byteCodeSize = fout.shaderSize;
+	bdesc.frag.byteCodeSize = (uint32_t)fout.shaderSize;
 	bdesc.frag.entryPoint = "main";
 	bdesc.frag.source = ftxt;
 	TheForge_AddShaderBinary(renderer, &bdesc, &shader);
@@ -526,6 +526,12 @@ static void Abort() {
 	abort();
 }
 
+static void ProcessMsg(void* msg) {
+	if(input) {
+		InputBasic_PlatformProcessMsg(input, msg);
+	}
+}
+
 int main(int argc, char const *argv[]) {
 	auto logger = SimpleLogManager_Alloc();
 
@@ -537,6 +543,7 @@ int main(int argc, char const *argv[]) {
 	shell->onAbortCallback = &Abort;
 	shell->perFrameUpdateCallback = &Update;
 	shell->perFrameDrawCallback = &Draw;
+	shell->onMsgCallback = &ProcessMsg;
 
 	shell->initialWindowDesc.name = "Devon";
 	shell->initialWindowDesc.width = -1;
