@@ -1,10 +1,11 @@
 #include "al2o3_platform/platform.h"
+#include "al2o3_memory/memory.h"
 #include "gfx_theforge/theforge.h"
 #include "utils_gameappshell/gameappshell.h"
 #include "utils_simple_logmanager/logmanager.h"
 #include "gfx_shadercompiler/compiler.h"
-#include "al2o3_vfile/vfile.hpp"
-#include "al2o3_os/filesystem.hpp"
+#include "al2o3_vfile/vfile.h"
+#include "al2o3_os/filesystem.h"
 #include "input_basic/input.h"
 
 const uint32_t gImageCount = 3;
@@ -43,31 +44,32 @@ enum AppKey {
 	AppKey_Quit
 };
 
-static void GameAppShellToTheForge_WindowsDesc(TheForge_WindowsDesc &windowDesc) {
+static void GameAppShellToTheForge_WindowsDesc(TheForge_WindowsDesc *windowDesc) {
 	GameAppShell_WindowDesc gasWindowDesc;
 	GameAppShell_WindowGetCurrentDesc(&gasWindowDesc);
 
-	windowDesc.handle = GameAppShell_GetPlatformWindowPtr();
-	windowDesc.windowedRect.right = gasWindowDesc.width;
-	windowDesc.windowedRect.left = 0;
-	windowDesc.windowedRect.bottom = gasWindowDesc.height;
-	windowDesc.windowedRect.top = 0;
-	windowDesc.fullscreenRect = windowDesc.windowedRect;
-	windowDesc.clientRect = windowDesc.windowedRect;
-	windowDesc.fullScreen = false;
-	windowDesc.windowsFlags = 0;
-	windowDesc.bigIcon = gasWindowDesc.bigIcon;
-	windowDesc.smallIcon = gasWindowDesc.smallIcon;
+	memset(windowDesc, 0, sizeof(TheForge_WindowsDesc));
+	windowDesc->handle = GameAppShell_GetPlatformWindowPtr();
+	windowDesc->windowedRect.right = gasWindowDesc.width;
+	windowDesc->windowedRect.left = 0;
+	windowDesc->windowedRect.bottom = gasWindowDesc.height;
+	windowDesc->windowedRect.top = 0;
+	windowDesc->fullscreenRect = windowDesc->windowedRect;
+	windowDesc->clientRect = windowDesc->windowedRect;
+	windowDesc->fullScreen = false;
+	windowDesc->windowsFlags = 0;
+	windowDesc->bigIcon = gasWindowDesc.bigIcon;
+	windowDesc->smallIcon = gasWindowDesc.smallIcon;
 
-	windowDesc.iconified = gasWindowDesc.iconified;
-	windowDesc.maximized = gasWindowDesc.maximized;
-	windowDesc.minimized = gasWindowDesc.minimized;
-	windowDesc.visible = gasWindowDesc.visible;
+	windowDesc->iconified = gasWindowDesc.iconified;
+	windowDesc->maximized = gasWindowDesc.maximized;
+	windowDesc->minimized = gasWindowDesc.minimized;
+	windowDesc->visible = gasWindowDesc.visible;
 }
 
 static bool AddSwapChain() {
-	TheForge_WindowsDesc windowDesc{};
-	GameAppShellToTheForge_WindowsDesc(windowDesc);
+	TheForge_WindowsDesc windowDesc;
+	GameAppShellToTheForge_WindowsDesc(&windowDesc);
 
 	swapChainDesc.pWindow = &windowDesc;
 	swapChainDesc.presentQueueCount = 1;
@@ -89,8 +91,8 @@ static bool AddSwapChain() {
 }
 
 static bool AddDepthBuffer() {
-	TheForge_WindowsDesc windowDesc{};
-	GameAppShellToTheForge_WindowsDesc(windowDesc);
+	TheForge_WindowsDesc windowDesc;
+	GameAppShellToTheForge_WindowsDesc(&windowDesc);
 
 	// Add depth buffer
 	depthRTDesc.arraySize = 1;
@@ -132,7 +134,7 @@ static bool AddShader() {
 
 	// to test both single shot shader compiler and persistant shader compiler
 	// single shot
-	VFile::ScopedFile vfile = VFile::File::FromFile(vertName, Os_FM_Read);
+	VFile_Handle vfile = VFile_FromFile(vertName, Os_FM_Read);
 	if(!vfile) return false;
 	bool vokay = ShaderCompiler_CompileShader(
 			ShaderCompiler_LANG_HLSL,
@@ -144,8 +146,9 @@ static bool AddShader() {
 	if (fout.log != nullptr) {
 		LOGWARNINGF("Shader compiler : %s %s", vokay ? "warnings" : "ERROR", fout.log);
 	}
+	VFile_Close(vfile);
 
-	VFile::ScopedFile ffile = VFile::File::FromFile(fragName, Os_FM_Read);
+	VFile_Handle ffile = VFile_FromFile(fragName, Os_FM_Read);
 	if(!ffile) return false;
 	bool fokay = ShaderCompiler_Compile(
 			shaderCompiler,
@@ -155,6 +158,8 @@ static bool AddShader() {
 	if (fout.log != nullptr) {
 		LOGWARNINGF("Shader compiler : %s %s", fokay ? "warnings" : "ERROR", fout.log);
 	}
+	VFile_Close(ffile);
+
 	if (!vokay || !fokay) return false;
 
 #if AL2O3_PLATFORM == AL2O3_PLATFORM_APPLE_MAC
@@ -391,7 +396,7 @@ static void Update(double deltaMS) {
 }
 
 static void Draw(double deltaMS) {
-	TheForge_AcquireNextImage(renderer, swapChain, imageAcquiredSemaphore, NULL, &gFrameIndex);
+	TheForge_AcquireNextImage(renderer, swapChain, imageAcquiredSemaphore, nullptr, &gFrameIndex);
 
 	TheForge_RenderTargetHandle renderTarget = TheForge_SwapChainGetRenderTarget(swapChain, gFrameIndex);
 	TheForge_SemaphoreHandle renderCompleteSemaphore = renderCompleteSemaphores[gFrameIndex];
@@ -428,22 +433,16 @@ static void Draw(double deltaMS) {
 																&renderTarget,
 																depthBuffer,
 																&loadActions,
-																nullptr,
-																nullptr,
-																-1,
-																-1);
+																nullptr,nullptr,
+																-1,-1);
 	TheForge_CmdSetViewport(cmd,
-													0.0f,
-													0.0f,
-													(float) TheForge_RenderTargetGetDesc(renderTarget)->width,
-													(float) TheForge_RenderTargetGetDesc(renderTarget)->height,
+													0.0f, 0.0f,
+													(float) renderTargetDesc.width, (float) renderTargetDesc.height,
 													0.0f,
 													1.0f);
 	TheForge_CmdSetScissor(cmd,
-												 0,
-												 0,
-												 TheForge_RenderTargetGetDesc(renderTarget)->width,
-												 TheForge_RenderTargetGetDesc(renderTarget)->height
+												 0,0,
+												 renderTargetDesc.width, renderTargetDesc.height
 	);
 
 	TheForge_CmdBindPipeline(cmd, pipeline);
@@ -455,11 +454,9 @@ static void Draw(double deltaMS) {
 
 	TheForge_CmdBindRenderTargets(cmd,
 																0,
-																NULL,
-																NULL,
-																NULL,
-																NULL,
-																NULL,
+																nullptr, nullptr,
+																nullptr,
+																nullptr, nullptr,
 																-1,
 																-1);
 	TheForge_CmdEndDebugMarker(cmd);
