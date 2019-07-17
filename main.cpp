@@ -333,7 +333,7 @@ static bool Init() {
 #endif
 	// window and renderer setup
 	TheForge_RendererDesc desc{
-			TheForge_ST_5_1,
+			TheForge_ST_6_0,
 			TheForge_GM_SINGLE
 	};
 #if AL2O3_PLATFORM == AL2O3_PLATFORM_WINDOWS
