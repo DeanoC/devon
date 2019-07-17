@@ -3,7 +3,7 @@ struct PSInput {
     float4 Colour : COLOR;
 };
 
-float4 main(PSInput input) : SV_TARGET
+float4 PS_main(PSInput input) : SV_TARGET
 {
     return input.Colour;
 }

@@ -4,6 +4,7 @@
 #include "utils_simple_logmanager/logmanager.h"
 #include "gfx_shadercompiler/compiler.h"
 #include "al2o3_vfile/vfile.hpp"
+#include "al2o3_os/filesystem.hpp"
 
 #define DO_TRIANGLE 1
 
@@ -102,20 +103,21 @@ static bool AddDepthBuffer() {
 
 static bool AddShader() {
 
-	/*
-	TheForge_ShaderLoadDesc basicShader = {};
-	basicShader.target = TheForge_ST_5_1;
-	basicShader.stages[0] = { "passthrough.vert", NULL, 0, TheForge_FSR_SrcShaders };
-	basicShader.stages[1] = { "colour.frag", NULL, 0, TheForge_FSR_SrcShaders };
-
-	TheForge_LoadShader(renderer, &basicShader, &shader);
-*/
-
 	char *vtxt = nullptr;
 	char *ftxt = nullptr;
 
 	char const* const vertName = "passthrough.hlsl";
 	char const* const fragName = "colour.hlsl";
+	char const* const vertEntryPoint = "VS_main";
+	char const* const fragEntryPoint = "PS_main";
+
+	ShaderCompiler_OutputType shaderOutputType =
+#if AL2O3_PLATFORM == AL2O3_PLATFORM_APPLE_MAC
+							ShaderCompiler_OT_MSL_OSX;
+#elif AL2O3_PLATFORM == AL2O3_PLATFORM_WINDOWS
+							ShaderCompiler_OT_DXIL;
+#endif
+
 	{
 		VFile::ScopedFile file = VFile::File::FromFile(vertName, Os_FM_Read);
 		if(!file) return false;
@@ -145,13 +147,9 @@ static bool AddShader() {
 				ShaderCompiler_LANG_HLSL,
 				ShaderCompiler_ST_VertexShader,
 				vtxt,
-				"main",
+				vertEntryPoint,
 				ShaderCompiler_OPT_None,
-#if AL2O3_PLATFORM == AL2O3_PLATFORM_APPLE_MAC
-				ShaderCompiler_OT_MSL_OSX,
-#elif AL2O3_PLATFORM == AL2O3_PLATFORM_WINDOWS
-				ShaderCompiler_OT_DXIL,
-#endif
+				shaderOutputType,
 				&vout);
 		if (okay) {
 			if (vout.log != nullptr) {
@@ -170,13 +168,9 @@ static bool AddShader() {
 				ShaderCompiler_LANG_HLSL,
 				ShaderCompiler_ST_FragmentShader,
 				ftxt,
-				"main",
+				fragEntryPoint,
 				ShaderCompiler_OPT_None,
-#if AL2O3_PLATFORM == AL2O3_PLATFORM_APPLE_MAC
-				ShaderCompiler_OT_MSL_OSX,
-#elif AL2O3_PLATFORM == AL2O3_PLATFORM_WINDOWS
-				ShaderCompiler_OT_DXIL,
-#endif
+				shaderOutputType,
 				&fout);
 		if (okay) {
 			if (fout.log != nullptr) {
@@ -188,7 +182,19 @@ static bool AddShader() {
 			}
 		}
 	}
-
+#if AL2O3_PLATFORM == AL2O3_PLATFORM_APPLE_MAC
+	TheForge_ShaderDesc sdesc;
+	sdesc.stages = (TheForge_ShaderStage) (TheForge_SS_FRAG | TheForge_SS_VERT);
+	sdesc.vert.name = vertName;
+	sdesc.vert.code = (char*) vout.shader;
+	sdesc.vert.entryPoint = vertEntryPoint;
+	sdesc.vert.macroCount = 0;
+	sdesc.frag.name = fragName;
+	sdesc.frag.code = (char*) fout.shader;
+	sdesc.frag.entryPoint = fragEntryPoint;
+	sdesc.frag.macroCount = 0;
+	TheForge_AddShader(renderer, &sdesc, &shader);
+#else
 	TheForge_BinaryShaderDesc bdesc;
 	bdesc.stages = (TheForge_ShaderStage) (TheForge_SS_FRAG | TheForge_SS_VERT);
 	bdesc.vert.byteCode = (char*) vout.shader;
@@ -200,7 +206,7 @@ static bool AddShader() {
 	bdesc.frag.entryPoint = "main";
 	bdesc.frag.source = ftxt;
 	TheForge_AddShaderBinary(renderer, &bdesc, &shader);
-
+#endif
 	MEMORY_FREE((void *) vout.log);
 	MEMORY_FREE((void *) vout.shader);
 	MEMORY_FREE((void *) fout.log);
@@ -322,6 +328,9 @@ static bool AddPipeline() {
 }
 static bool Init() {
 	LOGINFO("Initing");
+#if AL2O3_PLATFORM == AL2O3_PLATFORM_APPLE_MAC
+	Os_SetCurrentDir("..");
+#endif
 	// window and renderer setup
 	TheForge_RendererDesc desc{
 			TheForge_ST_5_1,

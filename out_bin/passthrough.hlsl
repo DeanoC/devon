@@ -9,7 +9,7 @@ struct VSOutput {
     float4 Colour : COLOR;
 };
 
-VSOutput main(VSInput input)
+VSOutput VS_main(VSInput input)
 {
     VSOutput result;
 
