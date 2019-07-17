@@ -5,8 +5,7 @@
 #include "gfx_shadercompiler/compiler.h"
 #include "al2o3_vfile/vfile.hpp"
 #include "al2o3_os/filesystem.hpp"
-
-#define DO_TRIANGLE 1
+#include "input_basic/input.h"
 
 const uint32_t gImageCount = 3;
 uint32_t gFrameIndex = 0;
@@ -34,6 +33,15 @@ TheForge_PipelineHandle pipeline;
 TheForge_SwapChainDesc swapChainDesc;
 TheForge_RenderTargetDesc renderTargetDesc;
 TheForge_RenderTargetDesc depthRTDesc;
+
+ShaderCompiler_ContextHandle shaderCompiler;
+
+InputBasic_ContextHandle input;
+InputBasic_KeyboardHandle keyboard;
+InputBasic_MouseHandle mouse;
+enum AppKey {
+	AppKey_Quit
+};
 
 static void GameAppShellToTheForge_WindowsDesc(TheForge_WindowsDesc &windowDesc) {
 	GameAppShell_WindowDesc gasWindowDesc;
@@ -117,71 +125,38 @@ static bool AddShader() {
 #elif AL2O3_PLATFORM == AL2O3_PLATFORM_WINDOWS
 							ShaderCompiler_OT_DXIL;
 #endif
-
-	{
-		VFile::ScopedFile file = VFile::File::FromFile(vertName, Os_FM_Read);
-		if(!file) return false;
-		size_t const fileSize = file->Size();
-		if(fileSize == 0) return false;
-		vtxt = (char *) MEMORY_MALLOC(fileSize + 1);
-		file->Read(vtxt, fileSize);
-		vtxt[fileSize] = 0;
-	}
-	{
-		VFile::ScopedFile file = VFile::File::FromFile(fragName, Os_FM_Read);
-		if(!file) return false;
-		size_t const fileSize = file->Size();
-		if(fileSize == 0) return false;
-		ftxt = (char *) MEMORY_MALLOC(fileSize + 1);
-		file->Read(ftxt, fileSize);
-		ftxt[fileSize] = 0;
-	}
-	ShaderCompiler_Output vout;
+							ShaderCompiler_Output vout;
 	memset(&vout, 0, sizeof(ShaderCompiler_Output));
 	ShaderCompiler_Output fout;
 	memset(&fout, 0, sizeof(ShaderCompiler_Output));
 
-	{
-		bool okay = ShaderCompiler_CompileShader(
-				vertName,
-				ShaderCompiler_LANG_HLSL,
-				ShaderCompiler_ST_VertexShader,
-				vtxt,
-				vertEntryPoint,
-				ShaderCompiler_OPT_None,
-				shaderOutputType,
-				&vout);
-		if (okay) {
-			if (vout.log != nullptr) {
-				LOGWARNINGF("Shader compiler : Warnings %s", vout.log);
-			}
-		} else {
-			if (vout.log != nullptr) {
-				LOGERRORF("Shader compiler : Errors %s", vout.log);
-			}
-		}
+	// to test both single shot shader compiler and persistant shader compiler
+	// single shot
+	VFile::ScopedFile vfile = VFile::File::FromFile(vertName, Os_FM_Read);
+	if(!vfile) return false;
+	bool vokay = ShaderCompiler_CompileShader(
+			ShaderCompiler_LANG_HLSL,
+			ShaderCompiler_ST_VertexShader,
+			vertName, vertEntryPoint, vfile,
+			ShaderCompiler_OPT_None,
+			shaderOutputType,0,
+			&vout);
+	if (fout.log != nullptr) {
+		LOGWARNINGF("Shader compiler : %s %s", vokay ? "warnings" : "ERROR", fout.log);
 	}
 
-	{
-		bool okay = ShaderCompiler_CompileShader(
-				fragName,
-				ShaderCompiler_LANG_HLSL,
-				ShaderCompiler_ST_FragmentShader,
-				ftxt,
-				fragEntryPoint,
-				ShaderCompiler_OPT_None,
-				shaderOutputType,
-				&fout);
-		if (okay) {
-			if (fout.log != nullptr) {
-				LOGWARNINGF("Shader compiler : Warnings %s", fout.log);
-			}
-		} else {
-			if (fout.log != nullptr) {
-				LOGERRORF("Shader compiler : Errors %s", fout.log);
-			}
-		}
+	VFile::ScopedFile ffile = VFile::File::FromFile(fragName, Os_FM_Read);
+	if(!ffile) return false;
+	bool fokay = ShaderCompiler_Compile(
+			shaderCompiler,
+			ShaderCompiler_ST_FragmentShader,
+			fragName, fragEntryPoint, ffile,
+			&fout);
+	if (fout.log != nullptr) {
+		LOGWARNINGF("Shader compiler : %s %s", fokay ? "warnings" : "ERROR", fout.log);
 	}
+	if (!vokay || !fokay) return false;
+
 #if AL2O3_PLATFORM == AL2O3_PLATFORM_APPLE_MAC
 	TheForge_ShaderDesc sdesc;
 	sdesc.stages = (TheForge_ShaderStage) (TheForge_SS_FRAG | TheForge_SS_VERT);
@@ -328,24 +303,24 @@ static bool AddPipeline() {
 }
 static bool Init() {
 	LOGINFO("Initing");
+
 #if AL2O3_PLATFORM == AL2O3_PLATFORM_APPLE_MAC
 	Os_SetCurrentDir("..");
 #endif
+
 	// window and renderer setup
 	TheForge_RendererDesc desc{
 			TheForge_ST_6_0,
-			TheForge_GM_SINGLE
+			TheForge_GM_SINGLE,
+			TheForge_D3D_FL_12_0,
 	};
-#if AL2O3_PLATFORM == AL2O3_PLATFORM_WINDOWS
-	desc.d3dFeatureLevel = TheForge_D3D_FL_12_0;
-#endif
+
 	renderer = TheForge_RendererCreate("Devon", &desc);
+	if (!renderer) { return false; }
+	shaderCompiler = ShaderCompiler_Create();
+	if (!shaderCompiler) { return false; }
 
-	//check for init success
-	if (!renderer) {
-		return false;
-	}
-
+	// create basic graphics queues fences etc.
 	TheForge_QueueDesc queueDesc{};
 	queueDesc.type = TheForge_CP_DIRECT;
 	TheForge_AddQueue(renderer, &queueDesc, &graphicsQueue);
@@ -358,7 +333,19 @@ static bool Init() {
 	}
 	TheForge_AddSemaphore(renderer, &imageAcquiredSemaphore);
 
+	// init TheForge resourceloader
 	TheForge_InitResourceLoaderInterface(renderer, nullptr);
+
+	// setup basic input and map quit key
+	input = InputBasic_Create();
+	if(InputBasic_GetKeyboardCount(input) > 0) {
+		keyboard = InputBasic_KeyboardCreate(input, 0);
+	}
+	if(InputBasic_GetMouseCount(input) > 0) {
+		mouse = InputBasic_MouseCreate(input, 0);
+	}
+	auto mapper = InputBasic_GetMapper(input);
+	if(keyboard) InputBasic_MapToKey(mapper, AppKey_Quit, keyboard, InputBasic_Key_Escape);
 
 	return true;
 }
@@ -370,7 +357,6 @@ static bool Load() {
 
 	if (!AddDepthBuffer())
 		return false;
-#if DO_TRIANGLE == 1
 
 	if (!AddShader())
 		return false;
@@ -392,11 +378,16 @@ static bool Load() {
 
 	if (!AddTriangle())
 		return false;
-#endif
+
+	InputBasic_SetWindowSize(input, renderTargetDesc.width, renderTargetDesc.height);
 	return true;
 }
 
 static void Update(double deltaMS) {
+	InputBasic_Update(input, deltaMS);
+	if(InputBasic_GetAsBool(input, AppKey_Quit)) {
+		GameAppShell_Quit();
+	}
 }
 
 static void Draw(double deltaMS) {
@@ -454,13 +445,13 @@ static void Draw(double deltaMS) {
 												 TheForge_RenderTargetGetDesc(renderTarget)->width,
 												 TheForge_RenderTargetGetDesc(renderTarget)->height
 	);
-#if DO_TRIANGLE == 1
+
 	TheForge_CmdBindPipeline(cmd, pipeline);
 	TheForge_CmdBindDescriptors(cmd, descriptorBinder, rootSignature, 0, nullptr);
 	TheForge_CmdBindVertexBuffer(cmd, 1, &vertexBuffer, nullptr);
 	TheForge_CmdBindIndexBuffer(cmd, indexBuffer, 0);
 	TheForge_CmdDrawIndexed(cmd, 3, 0, 0);
-#endif
+
 
 	TheForge_CmdBindRenderTargets(cmd,
 																0,
@@ -514,6 +505,10 @@ static void Unload() {
 static void Exit() {
 	LOGINFO("Exiting");
 
+	InputBasic_MouseDestroy(mouse);
+	InputBasic_KeyboardDestroy(keyboard);
+	InputBasic_Destroy(input);
+
 	TheForge_RemoveSemaphore(renderer, imageAcquiredSemaphore);
 
 	for (uint32_t i = 0; i < gImageCount; ++i) {
@@ -525,6 +520,8 @@ static void Exit() {
 	TheForge_RemoveCmdPool(renderer, cmdPool);
 
 	TheForge_RemoveQueue(graphicsQueue);
+
+	ShaderCompiler_Destroy(shaderCompiler);
 	TheForge_RendererDestroy(renderer);
 }
 

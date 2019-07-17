@@ -30,6 +30,8 @@ set(Deps
 		lua_base5.3
 		lua_al2o3_os
 		lua_image
+		input_basic_interface
+		input_basic_impl_gainput
 		utils_simple_logmanager
 		utils_misccpp
 		utils_gameappshell_interface
