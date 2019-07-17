@@ -27,6 +27,7 @@ set(Deps
 		gfx_imageio
 		gfx_theforge
 		gfx_shadercompiler
+		gfx_imgui_al2o3_theforge_bindings
 		lua_base5.3
 		lua_al2o3_os
 		lua_image
