@@ -412,21 +412,10 @@ static bool Load() {
 static void Update(double deltaMS) {
 	InputBasic_SetWindowSize(input, renderTargetDesc.width, renderTargetDesc.height);
 
-	ImguiBindings_SetWindowSize(imguiBindings, renderTargetDesc.width, renderTargetDesc.height);
-	ImguiBindings_SetDeltaTime(imguiBindings, deltaMS);
-
 	InputBasic_Update(input, deltaMS);
 	if (InputBasic_GetAsBool(input, AppKey_Quit)) {
 		GameAppShell_Quit();
 	}
-
-	ImGui::NewFrame();
-
-	bool showDemo = true;
-	ImGui::ShowDemoWindow(&showDemo);
-
-	ImGui::EndFrame();
-	ImGui::Render();
 
 }
 
@@ -490,7 +479,18 @@ static void Draw(double deltaMS) {
 	TheForge_CmdBindIndexBuffer(cmd, indexBuffer, 0);
 	TheForge_CmdDrawIndexed(cmd, 3, 0, 0);
 
+	// Imgui start
+	ImguiBindings_SetWindowSize(imguiBindings, renderTargetDesc.width, renderTargetDesc.height);
+	ImguiBindings_SetDeltaTime(imguiBindings, deltaMS);
+	ImGui::NewFrame();
+
+	bool showDemo = true;
+	ImGui::ShowDemoWindow(&showDemo);
+
+	ImGui::EndFrame();
+	ImGui::Render();
 	ImguiBindings_Draw(imguiBindings, cmd);
+	// Imgui end
 
 	TheForge_CmdBindRenderTargets(cmd,
 																0,
