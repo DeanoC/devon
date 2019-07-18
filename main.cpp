@@ -7,6 +7,8 @@
 #include "al2o3_vfile/vfile.h"
 #include "al2o3_os/filesystem.h"
 #include "input_basic/input.h"
+#include "gfx_imgui_al2o3_theforge_bindings/bindings.h"
+#include "gfx_imgui/imgui.h"
 
 const uint32_t gImageCount = 3;
 uint32_t gFrameIndex = 0;
@@ -43,6 +45,8 @@ InputBasic_MouseHandle mouse;
 enum AppKey {
 	AppKey_Quit
 };
+
+ImguiBindings_ContextHandle imguiBindings;
 
 static void GameAppShellToTheForge_WindowsDesc(TheForge_WindowsDesc *windowDesc) {
 	GameAppShell_WindowDesc gasWindowDesc;
@@ -112,22 +116,18 @@ static bool AddDepthBuffer() {
 }
 
 static bool AddShader() {
-
-	char *vtxt = nullptr;
-	char *ftxt = nullptr;
-
-	char const* const vertName = "passthrough.hlsl";
-	char const* const fragName = "colour.hlsl";
-	char const* const vertEntryPoint = "VS_main";
-	char const* const fragEntryPoint = "PS_main";
+	char const *const vertName = "passthrough.hlsl";
+	char const *const fragName = "colour.hlsl";
+	char const *const vertEntryPoint = "VS_main";
+	char const *const fragEntryPoint = "PS_main";
 
 	ShaderCompiler_OutputType shaderOutputType =
 #if AL2O3_PLATFORM == AL2O3_PLATFORM_APPLE_MAC
-							ShaderCompiler_OT_MSL_OSX;
+			ShaderCompiler_OT_MSL_OSX;
 #elif AL2O3_PLATFORM == AL2O3_PLATFORM_WINDOWS
-							ShaderCompiler_OT_DXIL;
+	ShaderCompiler_OT_DXIL;
 #endif
-							ShaderCompiler_Output vout;
+	ShaderCompiler_Output vout;
 	memset(&vout, 0, sizeof(ShaderCompiler_Output));
 	ShaderCompiler_Output fout;
 	memset(&fout, 0, sizeof(ShaderCompiler_Output));
@@ -135,13 +135,14 @@ static bool AddShader() {
 	// to test both single shot shader compiler and persistant shader compiler
 	// single shot
 	VFile_Handle vfile = VFile_FromFile(vertName, Os_FM_Read);
-	if(!vfile) return false;
+	if (!vfile)
+		return false;
 	bool vokay = ShaderCompiler_CompileShader(
 			ShaderCompiler_LANG_HLSL,
 			ShaderCompiler_ST_VertexShader,
 			vertName, vertEntryPoint, vfile,
 			ShaderCompiler_OPT_None,
-			shaderOutputType,0,
+			shaderOutputType, 0,
 			&vout);
 	if (fout.log != nullptr) {
 		LOGWARNINGF("Shader compiler : %s %s", vokay ? "warnings" : "ERROR", fout.log);
@@ -149,7 +150,8 @@ static bool AddShader() {
 	VFile_Close(vfile);
 
 	VFile_Handle ffile = VFile_FromFile(fragName, Os_FM_Read);
-	if(!ffile) return false;
+	if (!ffile)
+		return false;
 	bool fokay = ShaderCompiler_Compile(
 			shaderCompiler,
 			ShaderCompiler_ST_FragmentShader,
@@ -160,17 +162,23 @@ static bool AddShader() {
 	}
 	VFile_Close(ffile);
 
-	if (!vokay || !fokay) return false;
+	if (!vokay || !fokay) {
+		MEMORY_FREE((void *) vout.log);
+		MEMORY_FREE((void *) vout.shader);
+		MEMORY_FREE((void *) fout.log);
+		MEMORY_FREE((void *) fout.shader);
+		return false;
+	}
 
 #if AL2O3_PLATFORM == AL2O3_PLATFORM_APPLE_MAC
 	TheForge_ShaderDesc sdesc;
 	sdesc.stages = (TheForge_ShaderStage) (TheForge_SS_FRAG | TheForge_SS_VERT);
 	sdesc.vert.name = vertName;
-	sdesc.vert.code = (char*) vout.shader;
+	sdesc.vert.code = (char *) vout.shader;
 	sdesc.vert.entryPoint = vertEntryPoint;
 	sdesc.vert.macroCount = 0;
 	sdesc.frag.name = fragName;
-	sdesc.frag.code = (char*) fout.shader;
+	sdesc.frag.code = (char *) fout.shader;
 	sdesc.frag.entryPoint = fragEntryPoint;
 	sdesc.frag.macroCount = 0;
 	TheForge_AddShader(renderer, &sdesc, &shader);
@@ -179,20 +187,16 @@ static bool AddShader() {
 	bdesc.stages = (TheForge_ShaderStage) (TheForge_SS_FRAG | TheForge_SS_VERT);
 	bdesc.vert.byteCode = (char*) vout.shader;
 	bdesc.vert.byteCodeSize = (uint32_t)vout.shaderSize;
-	bdesc.vert.entryPoint = "main";
-	bdesc.vert.source = vtxt;
+	bdesc.vert.entryPoint = vertEntryPoint;
 	bdesc.frag.byteCode = (char*) fout.shader;
 	bdesc.frag.byteCodeSize = (uint32_t)fout.shaderSize;
-	bdesc.frag.entryPoint = "main";
-	bdesc.frag.source = ftxt;
+	bdesc.frag.entryPoint = fragEntryPoint;
 	TheForge_AddShaderBinary(renderer, &bdesc, &shader);
 #endif
 	MEMORY_FREE((void *) vout.log);
 	MEMORY_FREE((void *) vout.shader);
 	MEMORY_FREE((void *) fout.log);
 	MEMORY_FREE((void *) fout.shader);
-	MEMORY_FREE(vtxt);
-	MEMORY_FREE(ftxt);
 
 	return shader;
 }
@@ -254,7 +258,7 @@ static bool AddTriangle() {
 	triVbDesc.mDesc.mVertexStride = sizeof(float) * 6;
 	triVbDesc.pData = triVerts;
 	triVbDesc.pBuffer = &vertexBuffer;
-	TheForge_AddBuffer(&triVbDesc, true);
+	TheForge_LoadBuffer(&triVbDesc, true);
 
 	uint64_t triIndexDataSize = 3 * sizeof(uint16_t);
 	TheForge_BufferLoadDesc triIbDesc{};
@@ -264,7 +268,7 @@ static bool AddTriangle() {
 	triIbDesc.mDesc.mIndexType = TheForge_IT_UINT16;
 	triIbDesc.pData = triIndices;
 	triIbDesc.pBuffer = &indexBuffer;
-	TheForge_AddBuffer(&triIbDesc, true);
+	TheForge_LoadBuffer(&triIbDesc, true);
 
 	TheForge_FinishResourceLoading();
 
@@ -321,9 +325,13 @@ static bool Init() {
 	};
 
 	renderer = TheForge_RendererCreate("Devon", &desc);
-	if (!renderer) { return false; }
+	if (!renderer) {
+		return false;
+	}
 	shaderCompiler = ShaderCompiler_Create();
-	if (!shaderCompiler) { return false; }
+	if (!shaderCompiler) {
+		return false;
+	}
 
 	// create basic graphics queues fences etc.
 	TheForge_QueueDesc queueDesc{};
@@ -343,14 +351,15 @@ static bool Init() {
 
 	// setup basic input and map quit key
 	input = InputBasic_Create();
-	if(InputBasic_GetKeyboardCount(input) > 0) {
+	if (InputBasic_GetKeyboardCount(input) > 0) {
 		keyboard = InputBasic_KeyboardCreate(input, 0);
 	}
-	if(InputBasic_GetMouseCount(input) > 0) {
+	if (InputBasic_GetMouseCount(input) > 0) {
 		mouse = InputBasic_MouseCreate(input, 0);
 	}
 	auto mapper = InputBasic_GetMapper(input);
-	if(keyboard) InputBasic_MapToKey(mapper, AppKey_Quit, keyboard, InputBasic_Key_Escape);
+	if (keyboard)
+		InputBasic_MapToKey(mapper, AppKey_Quit, keyboard, InputBasic_Key_Escape);
 
 	return true;
 }
@@ -385,17 +394,44 @@ static bool Load() {
 		return false;
 
 	InputBasic_SetWindowSize(input, renderTargetDesc.width, renderTargetDesc.height);
+
+	imguiBindings = ImguiBindings_Create(renderer, shaderCompiler, input,
+																			 20,
+																			 gImageCount,
+																			 renderTargetDesc.format,
+																			 depthRTDesc.format,
+																			 renderTargetDesc.sRGB,
+																			 renderTargetDesc.sampleCount,
+																			 renderTargetDesc.sampleQuality);
+	if (!imguiBindings)
+		return false;
+
 	return true;
 }
 
 static void Update(double deltaMS) {
+	InputBasic_SetWindowSize(input, renderTargetDesc.width, renderTargetDesc.height);
+
+	ImguiBindings_SetWindowSize(imguiBindings, renderTargetDesc.width, renderTargetDesc.height);
+	ImguiBindings_SetDeltaTime(imguiBindings, deltaMS);
+
 	InputBasic_Update(input, deltaMS);
-	if(InputBasic_GetAsBool(input, AppKey_Quit)) {
+	if (InputBasic_GetAsBool(input, AppKey_Quit)) {
 		GameAppShell_Quit();
 	}
+
+	ImGui::NewFrame();
+
+	bool showDemo = true;
+	ImGui::ShowDemoWindow(&showDemo);
+
+	ImGui::EndFrame();
+	ImGui::Render();
+
 }
 
 static void Draw(double deltaMS) {
+
 	TheForge_AcquireNextImage(renderer, swapChain, imageAcquiredSemaphore, nullptr, &gFrameIndex);
 
 	TheForge_RenderTargetHandle renderTarget = TheForge_SwapChainGetRenderTarget(swapChain, gFrameIndex);
@@ -408,7 +444,21 @@ static void Draw(double deltaMS) {
 	if (fenceStatus == TheForge_FS_INCOMPLETE)
 		TheForge_WaitForFences(renderer, 1, &renderCompleteFence);
 
-	// simply record the screen cleaning command
+	if (!depthBuffer)
+		return;
+
+
+
+	TheForge_CmdHandle cmd = pCmds[gFrameIndex];
+	TheForge_BeginCmd(cmd);
+
+	// insert write barrier for render target if we are more the N frames ahead
+	TheForge_TextureBarrier barriers[] = {
+			{TheForge_RenderTargetGetTexture(renderTarget), TheForge_RS_RENDER_TARGET},
+			{TheForge_RenderTargetGetTexture(depthBuffer), TheForge_RS_DEPTH_WRITE},
+	};
+	TheForge_CmdResourceBarrier(cmd, 0, nullptr, 2, barriers, false);
+
 	TheForge_LoadActionsDesc loadActions = {0};
 	loadActions.loadActionsColor[0] = TheForge_LA_CLEAR;
 	loadActions.clearColorValues[0].r = 1.0f;
@@ -418,32 +468,21 @@ static void Draw(double deltaMS) {
 	loadActions.loadActionDepth = TheForge_LA_CLEAR;
 	loadActions.clearDepth.depth = 1.0f;
 	loadActions.clearDepth.stencil = 0;
-
-	TheForge_Cmd *cmd = pCmds[gFrameIndex];
-	TheForge_BeginCmd(cmd);
-
-	TheForge_TextureBarrier barriers[] = {
-			{TheForge_RenderTargetGetTexture(renderTarget), TheForge_RS_RENDER_TARGET},
-			{TheForge_RenderTargetGetTexture(depthBuffer), TheForge_RS_DEPTH_WRITE},
-	};
-	TheForge_CmdResourceBarrier(cmd, 0, nullptr, 2, barriers, false);
-
 	TheForge_CmdBindRenderTargets(cmd,
 																1,
 																&renderTarget,
 																depthBuffer,
 																&loadActions,
-																nullptr,nullptr,
-																-1,-1);
-	TheForge_CmdSetViewport(cmd,
-													0.0f, 0.0f,
+																nullptr, nullptr,
+																-1, -1);
+	TheForge_CmdSetViewport(cmd, 0.0f, 0.0f,
 													(float) renderTargetDesc.width, (float) renderTargetDesc.height,
-													0.0f,
-													1.0f);
-	TheForge_CmdSetScissor(cmd,
-												 0,0,
-												 renderTargetDesc.width, renderTargetDesc.height
-	);
+													0.0f,1.0f);
+	TheForge_CmdSetScissor(cmd,	0, 0,
+												 renderTargetDesc.width, renderTargetDesc.height);
+
+	if (!pipeline || !descriptorBinder || !rootSignature)
+		return;
 
 	TheForge_CmdBindPipeline(cmd, pipeline);
 	TheForge_CmdBindDescriptors(cmd, descriptorBinder, rootSignature, 0, nullptr);
@@ -451,6 +490,7 @@ static void Draw(double deltaMS) {
 	TheForge_CmdBindIndexBuffer(cmd, indexBuffer, 0);
 	TheForge_CmdDrawIndexed(cmd, 3, 0, 0);
 
+	ImguiBindings_Draw(imguiBindings, cmd);
 
 	TheForge_CmdBindRenderTargets(cmd,
 																0,
@@ -459,7 +499,6 @@ static void Draw(double deltaMS) {
 																nullptr, nullptr,
 																-1,
 																-1);
-	TheForge_CmdEndDebugMarker(cmd);
 
 	barriers[0].texture = TheForge_RenderTargetGetTexture(renderTarget);
 	barriers[0].newState = TheForge_RS_PRESENT;
@@ -494,9 +533,49 @@ static void Unload() {
 
 	TheForge_WaitQueueIdle(graphicsQueue);
 
-	TheForge_RemoveSwapChain(renderer, swapChain);
-	TheForge_RemoveRenderTarget(renderer, depthBuffer);
+	ImguiBindings_Destroy(imguiBindings);
 
+	if(vertexBuffer) {
+		TheForge_RemoveBuffer(renderer, vertexBuffer);
+		vertexBuffer = nullptr;
+	}
+	if(indexBuffer) {
+		TheForge_RemoveBuffer(renderer, indexBuffer);
+		indexBuffer = nullptr;
+	}
+
+	if (descriptorBinder) {
+		TheForge_RemoveDescriptorBinder(renderer, descriptorBinder);
+		descriptorBinder = nullptr;
+	}
+	if (pipeline) {
+		TheForge_RemovePipeline(renderer, pipeline);
+		pipeline = nullptr;
+	}
+	if (rootSignature) {
+		TheForge_RemoveRootSignature(renderer, rootSignature);
+		rootSignature = nullptr;
+	}
+	if (rasterizerState) {
+		TheForge_RemoveRasterizerState(renderer, rasterizerState);
+		rasterizerState = nullptr;
+	}
+	if (depthState) {
+		TheForge_RemoveDepthState(renderer, depthState);
+		depthState = nullptr;
+	}
+	if (shader) {
+		TheForge_RemoveShader(renderer, shader);
+		shader = nullptr;
+	}
+	if (swapChain) {
+		TheForge_RemoveSwapChain(renderer, swapChain);
+		swapChain = nullptr;
+	}
+	if (depthBuffer) {
+		TheForge_RemoveRenderTarget(renderer, depthBuffer);
+		depthBuffer = nullptr;
+	}
 }
 
 static void Exit() {
@@ -523,11 +602,12 @@ static void Exit() {
 }
 
 static void Abort() {
+	LOGINFO("ABORT ABORT ABORT");
 	abort();
 }
 
-static void ProcessMsg(void* msg) {
-	if(input) {
+static void ProcessMsg(void *msg) {
+	if (input) {
 		InputBasic_PlatformProcessMsg(input, msg);
 	}
 }
