@@ -351,15 +351,17 @@ static bool Init() {
 
 	// setup basic input and map quit key
 	input = InputBasic_Create();
+	uint32_t userIdBlk = InputBasic_AllocateUserIdBlock(input); // 1st 1000 id are the apps
+	ASSERT(userIdBlk == 0);
+
 	if (InputBasic_GetKeyboardCount(input) > 0) {
 		keyboard = InputBasic_KeyboardCreate(input, 0);
 	}
 	if (InputBasic_GetMouseCount(input) > 0) {
 		mouse = InputBasic_MouseCreate(input, 0);
 	}
-	auto mapper = InputBasic_GetMapper(input);
 	if (keyboard)
-		InputBasic_MapToKey(mapper, AppKey_Quit, keyboard, InputBasic_Key_Escape);
+		InputBasic_MapToKey(input, AppKey_Quit, keyboard, InputBasic_Key_Escape);
 
 	return true;
 }
@@ -416,6 +418,17 @@ static void Update(double deltaMS) {
 	if (InputBasic_GetAsBool(input, AppKey_Quit)) {
 		GameAppShell_Quit();
 	}
+
+	// Imgui start
+	ImguiBindings_SetWindowSize(imguiBindings, renderTargetDesc.width, renderTargetDesc.height);
+	ImguiBindings_UpdateInput(imguiBindings, deltaMS);
+	ImGui::NewFrame();
+
+	bool showDemo = true;
+	ImGui::ShowDemoWindow(&showDemo);
+
+	ImGui::EndFrame();
+	ImGui::Render();
 
 }
 
@@ -479,18 +492,7 @@ static void Draw(double deltaMS) {
 	TheForge_CmdBindIndexBuffer(cmd, indexBuffer, 0);
 	TheForge_CmdDrawIndexed(cmd, 3, 0, 0);
 
-	// Imgui start
-	ImguiBindings_SetWindowSize(imguiBindings, renderTargetDesc.width, renderTargetDesc.height);
-	ImguiBindings_SetDeltaTime(imguiBindings, deltaMS);
-	ImGui::NewFrame();
-
-	bool showDemo = true;
-	ImGui::ShowDemoWindow(&showDemo);
-
-	ImGui::EndFrame();
-	ImGui::Render();
 	ImguiBindings_Draw(imguiBindings, cmd);
-	// Imgui end
 
 	TheForge_CmdBindRenderTargets(cmd,
 																0,
