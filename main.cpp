@@ -413,6 +413,10 @@ static bool Load() {
 
 static void Update(double deltaMS) {
 	InputBasic_SetWindowSize(input, renderTargetDesc.width, renderTargetDesc.height);
+	ImguiBindings_SetWindowSize(imguiBindings, renderTargetDesc.width, renderTargetDesc.height);
+
+	GameAppShell_WindowDesc windowDesc;
+	GameAppShell_WindowGetCurrentDesc(&windowDesc);
 
 	InputBasic_Update(input, deltaMS);
 	if (InputBasic_GetAsBool(input, AppKey_Quit)) {
@@ -420,7 +424,6 @@ static void Update(double deltaMS) {
 	}
 
 	// Imgui start
-	ImguiBindings_SetWindowSize(imguiBindings, renderTargetDesc.width, renderTargetDesc.height);
 	ImguiBindings_UpdateInput(imguiBindings, deltaMS);
 	ImGui::NewFrame();
 
@@ -437,6 +440,8 @@ static void Draw(double deltaMS) {
 	TheForge_AcquireNextImage(renderer, swapChain, imageAcquiredSemaphore, nullptr, &gFrameIndex);
 
 	TheForge_RenderTargetHandle renderTarget = TheForge_SwapChainGetRenderTarget(swapChain, gFrameIndex);
+	memcpy(&renderTargetDesc, TheForge_RenderTargetGetDesc(renderTarget), sizeof(TheForge_RenderTargetDesc));
+
 	TheForge_SemaphoreHandle renderCompleteSemaphore = renderCompleteSemaphores[gFrameIndex];
 	TheForge_FenceHandle renderCompleteFence = renderCompleteFences[gFrameIndex];
 
@@ -448,8 +453,6 @@ static void Draw(double deltaMS) {
 
 	if (!depthBuffer)
 		return;
-
-
 
 	TheForge_CmdHandle cmd = pCmds[gFrameIndex];
 	TheForge_BeginCmd(cmd);
