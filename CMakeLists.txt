@@ -14,6 +14,8 @@ project(${ProjectName})
 
 set(Src
 		main.cpp
+		devon_display.cpp
+		devon_display.h
 		)
 set(Deps
 		al2o3_platform
