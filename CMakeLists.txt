@@ -16,12 +16,15 @@ set(Src
 		main.cpp
 		devon_display.cpp
 		devon_display.h
+		texture_viewer.cpp
+		texture_viewer.hpp
 		)
 set(Deps
 		al2o3_platform
 		al2o3_memory
 		al2o3_os
 		al2o3_cmath
+		al2o3_cadt
 		al2o3_tinystl
 		al2o3_vfile
 		gfx_image_interface

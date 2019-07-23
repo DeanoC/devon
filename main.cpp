@@ -1,6 +1,8 @@
 #include "al2o3_platform/platform.h"
 #include "al2o3_memory/memory.h"
 #include "gfx_theforge/theforge.h"
+#include "gfx_theforge/al2o3_helpers.h"
+#include "gfx_imageio/io.h"
 #include "utils_gameappshell/gameappshell.h"
 #include "utils_simple_logmanager/logmanager.h"
 #include "gfx_shadercompiler/compiler.h"
@@ -11,6 +13,7 @@
 #include "gfx_imgui/imgui.h"
 
 #include "devon_display.h"
+#include "texture_viewer.hpp"
 
 const uint32_t FRAMES_AHEAD = 3;
 
@@ -24,11 +27,15 @@ ShaderCompiler_ContextHandle shaderCompiler;
 InputBasic_ContextHandle input;
 InputBasic_KeyboardHandle keyboard;
 InputBasic_MouseHandle mouse;
+
+TextureViewerHandle textureViewer;
+
 enum AppKey {
 	AppKey_Quit
 };
 
 ImguiBindings_ContextHandle imguiBindings;
+ImguiBindings_Texture textureToView;
 
 static bool Init() {
 
@@ -93,6 +100,38 @@ static bool Load() {
 	if (!imguiBindings)
 		return false;
 
+	textureViewer = TextureViewer_Create(renderer,
+																			 shaderCompiler,
+																			 imguiBindings,
+																			 FRAMES_AHEAD,
+																			 Display_GetBackBufferFormat(display),
+																			 Display_GetDepthBufferFormat(display),
+																			 Display_IsBackBufferSrgb(display),
+																			 TheForge_SC_1,
+																			 0);
+
+	VFile_Handle fh = VFile_FromFile("fmtcheck_B8G8R8A8_UNORM_16x16.ktx", Os_FM_ReadBinary);
+	if (!fh)
+		return false;
+	textureToView.cpu = Image_Load(fh);
+	VFile_Close(fh);
+
+	TheForge_RawImageData rawImageData{
+			(unsigned char *) Image_RawDataPtr(textureToView.cpu),
+			ImageFormatToTheForge_ImageFormat(textureToView.cpu->format),
+			textureToView.cpu->width,
+			textureToView.cpu->height,
+			textureToView.cpu->depth,
+			textureToView.cpu->slices,
+			(uint32_t) Image_LinkedImageCountOf(textureToView.cpu)
+	};
+
+	TheForge_TextureLoadDesc loadDesc{};
+	loadDesc.pRawImageData = &rawImageData;
+	loadDesc.pTexture = &textureToView.gpu;
+	loadDesc.mCreationFlag = TheForge_TCF_OWN_MEMORY_BIT;
+	TheForge_LoadTexture(&loadDesc, false);
+
 	return true;
 }
 
@@ -102,7 +141,6 @@ static void Update(double deltaMS) {
 
 	InputBasic_SetWindowSize(input, windowDesc.width, windowDesc.height);
 	ImguiBindings_SetWindowSize(imguiBindings, windowDesc.width, windowDesc.height);
-
 
 	InputBasic_Update(input, deltaMS);
 	if (InputBasic_GetAsBool(input, AppKey_Quit)) {
@@ -116,6 +154,8 @@ static void Update(double deltaMS) {
 	bool showDemo = true;
 	ImGui::ShowDemoWindow(&showDemo);
 
+	TextureViewer_DrawUI(textureViewer, &textureToView);
+
 	ImGui::EndFrame();
 	ImGui::Render();
 
@@ -127,11 +167,11 @@ static void Draw(double deltaMS) {
 	TheForge_RenderTargetHandle depthTarget;
 
 	TheForge_CmdHandle cmd = Display_NewFrame(display, &renderTarget, &depthTarget);
-	TheForge_RenderTargetDesc const* renderTargetDesc = TheForge_RenderTargetGetDesc(renderTarget);
+	TheForge_RenderTargetDesc const *renderTargetDesc = TheForge_RenderTargetGetDesc(renderTarget);
 
 	TheForge_LoadActionsDesc loadActions = {0};
 	loadActions.loadActionsColor[0] = TheForge_LA_CLEAR;
-	loadActions.clearColorValues[0] = { 0.45f, 0.5f, 0.6f, 0.0f };
+	loadActions.clearColorValues[0] = {0.45f, 0.5f, 0.6f, 0.0f};
 	loadActions.loadActionDepth = TheForge_LA_CLEAR;
 	loadActions.clearDepth.depth = 1.0f;
 	loadActions.clearDepth.stencil = 0;
@@ -148,7 +188,9 @@ static void Draw(double deltaMS) {
 	TheForge_CmdSetScissor(cmd, 0, 0,
 												 renderTargetDesc->width, renderTargetDesc->height);
 
-	ImguiBindings_Draw(imguiBindings, cmd);
+	uint32_t const imguiFrameIdx = ImguiBindings_Render(imguiBindings, cmd);
+
+	TextureViewer_Render(textureViewer, cmd, imguiFrameIdx);
 
 	Display_Present(display);
 }
@@ -157,6 +199,12 @@ static void Unload() {
 	LOGINFO("Unloading");
 
 	TheForge_WaitQueueIdle(graphicsQueue);
+
+	TextureViewer_Destroy(textureViewer);
+	Image_Destroy(textureToView.cpu);
+	textureToView.cpu = nullptr;
+	TheForge_RemoveTexture(renderer, textureToView.gpu);
+	textureToView.gpu = nullptr;
 
 	ImguiBindings_Destroy(imguiBindings);
 
