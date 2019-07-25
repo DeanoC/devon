@@ -118,7 +118,7 @@ static bool Load() {
 
 	TheForge_RawImageData rawImageData{
 			(unsigned char *) Image_RawDataPtr(textureToView.cpu),
-			ImageFormatToTheForge_ImageFormat(textureToView.cpu->format),
+			TinyImageFormatToTheForge_ImageFormat(textureToView.cpu->format),
 			textureToView.cpu->width,
 			textureToView.cpu->height,
 			textureToView.cpu->depth,
