@@ -116,14 +116,16 @@ static bool Load() {
 	textureToView.cpu = Image_Load(fh);
 	VFile_Close(fh);
 
+	// use extended format
 	TheForge_RawImageData rawImageData{
 			(unsigned char *) Image_RawDataPtr(textureToView.cpu),
-			TinyImageFormatToTheForge_ImageFormat(textureToView.cpu->format),
+			TheForge_IF_NONE,
 			textureToView.cpu->width,
 			textureToView.cpu->height,
 			textureToView.cpu->depth,
 			textureToView.cpu->slices,
-			(uint32_t) Image_LinkedImageCountOf(textureToView.cpu)
+			(uint32_t) Image_LinkedImageCountOf(textureToView.cpu),
+			textureToView.cpu->format,
 	};
 
 	TheForge_TextureLoadDesc loadDesc{};
