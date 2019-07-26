@@ -185,10 +185,11 @@ static void Update(double deltaMS) {
 	ImguiBindings_UpdateInput(imguiBindings, deltaMS);
 	ImGui::NewFrame();
 
-	bool showDemo = true;
-	ImGui::ShowDemoWindow(&showDemo);
 
 	TextureViewer_DrawUI(textureViewer, &textureToView);
+
+	bool showDemo = true;
+	ImGui::ShowDemoWindow(&showDemo);
 
 	ImGui::EndFrame();
 	ImGui::Render();
@@ -202,6 +203,8 @@ static void Draw(double deltaMS) {
 
 	TheForge_CmdHandle cmd = Display_NewFrame(display, &renderTarget, &depthTarget);
 	TheForge_RenderTargetDesc const *renderTargetDesc = TheForge_RenderTargetGetDesc(renderTarget);
+
+	TextureViewer_RenderSetup(textureViewer, cmd);
 
 	TheForge_LoadActionsDesc loadActions = {0};
 	loadActions.loadActionsColor[0] = TheForge_LA_CLEAR;
@@ -222,9 +225,8 @@ static void Draw(double deltaMS) {
 	TheForge_CmdSetScissor(cmd, 0, 0,
 												 renderTargetDesc->width, renderTargetDesc->height);
 
-	uint32_t const imguiFrameIdx = ImguiBindings_Render(imguiBindings, cmd);
+	ImguiBindings_Render(imguiBindings, cmd);
 
-	TextureViewer_Render(textureViewer, cmd, imguiFrameIdx);
 
 	Display_Present(display);
 }

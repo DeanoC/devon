@@ -20,7 +20,6 @@ struct TextureViewer {
 	ImguiBindings_ContextHandle imgui;
 	uint32_t maxFrames;
 
-	CADT_VectorHandle renderList;
 	TheForge_ShaderHandle shader;
 	TheForge_SamplerHandle pointSampler;
 	TheForge_SamplerHandle bilinearSampler;
@@ -34,6 +33,9 @@ struct TextureViewer {
 
 	UniformBuffer uniforms;
 	bool colourChannelEnable[4];
+
+	TheForge_CmdHandle cmd; // only valid during a render
+	uint32_t currentFrame;
 };
 
 namespace {
@@ -127,12 +129,8 @@ TextureViewerHandle TextureViewer_Create(TheForge_RendererHandle renderer,
 	ctx->shaderCompiler = shaderCompiler;
 	ctx->imgui = imgui;
 	ctx->maxFrames = maxFrames;
-	ctx->renderList = CADT_VectorCreate(sizeof(ImDrawCmd));
-	CADT_VectorReserve(ctx->renderList, 100);
 
 	if (!CreateShaders(ctx)) {
-
-		CADT_VectorDestroy(ctx->renderList);
 		MEMORY_FREE(ctx);
 		return nullptr;
 	}
@@ -300,18 +298,42 @@ void TextureViewer_Destroy(TextureViewerHandle handle) {
 	if (ctx->shader)
 		TheForge_RemoveShader(ctx->renderer, ctx->shader);
 
-	CADT_VectorDestroy(ctx->renderList);
 	MEMORY_FREE(ctx);
 }
-static void ImCallback(ImDrawList const *list, ImDrawCmd const *cmd) {
+static void ImCallback(ImDrawList const *list, ImDrawCmd const *imcmd) {
 
-	if(cmd->TextureId == nullptr)
+	if(imcmd->TextureId == nullptr)
 		return;
 
-	auto ctx = (TextureViewer *) cmd->UserCallbackData;
+	auto ctx = (TextureViewer *) imcmd->UserCallbackData;
 
-	CADT_VectorPushElement(ctx->renderList, (void *) cmd);
+	ImguiBindings_Texture const* texture = (ImguiBindings_Texture*)imcmd->TextureId;
 
+	ImDrawData *drawData = ImGui::GetDrawData();
+	ImVec2 displayPos = drawData->DisplayPos;
+	displayPos.x *= drawData->FramebufferScale.x;
+	displayPos.y *= drawData->FramebufferScale.y;
+
+	TheForge_CmdBindPipeline(ctx->cmd, ctx->pipeline);
+
+	TheForge_DescriptorData params[2] {};
+	params[0].pName = "colourTexture";
+	params[0].pTextures = &(texture->gpu);
+	params[0].count = 1;
+	TheForge_CmdBindDescriptors(ctx->cmd, ctx->descriptorBinder, ctx->rootSignature, 1, params);
+
+	float const clipX = imcmd->ClipRect.x * drawData->FramebufferScale.x;
+	float const clipY = imcmd->ClipRect.y * drawData->FramebufferScale.y;
+	float const clipZ = imcmd->ClipRect.z * drawData->FramebufferScale.x;
+	float const clipW = imcmd->ClipRect.w * drawData->FramebufferScale.y;
+
+	TheForge_CmdSetScissor(ctx->cmd,
+												 (uint32_t) (clipX - displayPos.x),
+												 (uint32_t) (clipY - displayPos.y),
+												 (uint32_t) (clipZ - clipX),
+												 (uint32_t) (clipW - clipY));
+
+	TheForge_CmdDrawIndexed(ctx->cmd, 6, imcmd->IdxOffset, imcmd->VtxOffset);
 }
 
 void TextureViewer_DrawUI(TextureViewerHandle handle, ImguiBindings_Texture *texture) {
@@ -324,7 +346,7 @@ void TextureViewer_DrawUI(TextureViewerHandle handle, ImguiBindings_Texture *tex
 	ImGui::Begin("TextureViewer", nullptr, window_flags);
 
 	ImGuiWindow* window = ImGui::GetCurrentWindow();
-	ImDrawList *draw_list = ImGui::GetWindowDrawList();
+	ImDrawList *drawList = ImGui::GetWindowDrawList();
 	if (window->SkipItems) {
 		ImGui::End();
 		return;
@@ -340,26 +362,25 @@ void TextureViewer_DrawUI(TextureViewerHandle handle, ImguiBindings_Texture *tex
 										 window->DC.CursorPos.y + (texture->cpu->height * 32) };
 		ImRect const bb(window->DC.CursorPos, rb );
 
-		window->DrawList->PushTextureID(texture);
-		window->DrawList->PrimReserve(6, 4);
-		window->DrawList->PrimRectUV(bb.Min, bb.Max, {0,0}, {1,1}, 0xFFFFFFFF );
-		draw_list->AddCallback(&ImCallback, handle);
-		window->DrawList->PopTextureID();
+		drawList->PushTextureID(texture);
+		drawList->PrimReserve(6, 4);
+		drawList->PrimRectUV(bb.Min, bb.Max, {0,0}, {1,1}, 0xFFFFFFFF );
+		drawList->CmdBuffer.back().ElemCount = 0; // stop the rect rendering instead do a callback
+		drawList->AddCallback(&ImCallback, handle);
+		drawList->PopTextureID();
 	}
 
 	ImGui::End();
 }
 
-void TextureViewer_Render(TextureViewerHandle handle, TheForge_CmdHandle cmd, uint32_t frameIdx) {
+void TextureViewer_RenderSetup(TextureViewerHandle handle, TheForge_CmdHandle cmd) {
 	auto ctx = (TextureViewer *) handle;
 	if (!ctx)
 		return;
 
 	static_assert(sizeof(UniformBuffer) < UNIFORM_BUFFER_SIZE_PER_FRAME);
 
-	uint64_t const baseVertexOffset = frameIdx * ImguiBindings_MAX_VERTEX_COUNT_PER_FRAME;
-	uint64_t const baseIndexOffset = frameIdx * ImguiBindings_MAX_INDEX_COUNT_PER_FRAME;
-	uint64_t const baseUniformOffset = frameIdx * UNIFORM_BUFFER_SIZE_PER_FRAME;
+	uint64_t const baseUniformOffset = ctx->currentFrame * UNIFORM_BUFFER_SIZE_PER_FRAME;
 	memcpy(ctx->uniforms.scaleOffsetMatrix, ImguiBindings_GetScaleOffsetMatrix(ctx->imgui), sizeof(float) * 16);
 
 	if((ctx->colourChannelEnable[0] == false) &&
@@ -383,53 +404,14 @@ void TextureViewer_Render(TextureViewerHandle handle, TheForge_CmdHandle cmd, ui
 	};
 	TheForge_UpdateBuffer(&uniformsUpdate, true);
 
-	ImDrawData *drawData = ImGui::GetDrawData();
-	ImVec2 displayPos = drawData->DisplayPos;
-	displayPos.x *= drawData->FramebufferScale.x;
-	displayPos.y *= drawData->FramebufferScale.y;
-
-	TheForge_CmdSetViewport(cmd, 0.0f, 0.0f,
-													drawData->DisplaySize.x * drawData->FramebufferScale.x,
-													drawData->DisplaySize.y  * drawData->FramebufferScale.y,
-													0.0f, 1.0f);
-	TheForge_CmdBindPipeline(cmd, ctx->pipeline);
-
-	TheForge_BufferHandle vertexBuffers[] = {ImguiBindings_GetVertexBuffer(ctx->imgui)};
-	TheForge_CmdBindIndexBuffer(cmd, ImguiBindings_GetIndexBuffer(ctx->imgui), baseIndexOffset);
-	TheForge_CmdBindVertexBuffer(cmd, 1, vertexBuffers, &baseVertexOffset);
-
-	TheForge_DescriptorData params[1] = {};
+	TheForge_DescriptorData params[1] {};
 	params[0].pName = "uniformBlock";
 	params[0].pBuffers = &ctx->uniformBuffer;
 	params[0].pOffsets = &baseUniformOffset;
 	params[0].count = 1;
-
 	TheForge_CmdBindDescriptors(cmd, ctx->descriptorBinder, ctx->rootSignature, 1, params);
 
-	for (auto i = 0u; i < CADT_VectorSize(ctx->renderList); ++i) {
-		auto imcmd = (ImDrawCmd const *) CADT_VectorAt(ctx->renderList, i);
-		ASSERT(imcmd->UserCallbackData == handle);
-		float const clipX = imcmd->ClipRect.x * drawData->FramebufferScale.x;
-		float const clipY = imcmd->ClipRect.y * drawData->FramebufferScale.y;
-		float const clipZ = imcmd->ClipRect.z * drawData->FramebufferScale.x;
-		float const clipW = imcmd->ClipRect.w * drawData->FramebufferScale.y;
-
-		TheForge_CmdSetScissor(cmd,
-													 (uint32_t) (clipX - displayPos.x),
-													 (uint32_t) (clipY - displayPos.y),
-													 (uint32_t) (clipZ - clipX),
-													 (uint32_t) (clipW - clipY));
-
-		ImguiBindings_Texture const
-				*texture = imcmd->TextureId ? (ImguiBindings_Texture const *) imcmd->TextureId : nullptr;
-		TheForge_DescriptorData params[1] = {};
-		params[0].pName = "colourTexture";
-		params[0].pTextures = &(texture->gpu);
-		params[0].count = 1;
-		TheForge_CmdBindDescriptors(cmd, ctx->descriptorBinder, ctx->rootSignature, 1, params);
-
-		TheForge_CmdDrawIndexed(cmd, 6, imcmd->IdxOffset - 6, imcmd->VtxOffset);
-	}
-
-	CADT_VectorResize(ctx->renderList, 0);
+	// where we will write next frame data, which was last used N frame ago
+	ctx->cmd = cmd;
+	ctx->currentFrame = (ctx->currentFrame + 1) % ctx->maxFrames;
 }

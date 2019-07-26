@@ -19,6 +19,7 @@ TextureViewerHandle TextureViewer_Create(TheForge_RendererHandle renderer,
 void TextureViewer_Destroy(TextureViewerHandle handle);
 
 void TextureViewer_DrawUI(TextureViewerHandle handle, ImguiBindings_Texture* texture);
-void TextureViewer_Render(TextureViewerHandle handle, TheForge_CmdHandle cmd, uint32_t frameIdx);
+// must be called before Imguibinding render. Sets up things for the callbacks from imgui
+void TextureViewer_RenderSetup(TextureViewerHandle handle, TheForge_CmdHandle cmd);
 
 #endif //DEVON__TEXTURE_VIEWER_HPP
