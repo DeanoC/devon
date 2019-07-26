@@ -52,8 +52,8 @@ Display_ContextHandle Display_Create(TheForge_RendererHandle renderer,
 	swapChainDesc.pWindow = &windowDesc;
 	swapChainDesc.presentQueueCount = 1;
 	swapChainDesc.pPresentQueues = &presentQueue;
-	swapChainDesc.width = gasWindowDesc.width * gasWindowDesc.dpiBackingScale[0];
-	swapChainDesc.height = gasWindowDesc.height * gasWindowDesc.dpiBackingScale[1];
+	swapChainDesc.width = (uint32_t)(gasWindowDesc.width * gasWindowDesc.dpiBackingScale[0]);
+	swapChainDesc.height = (uint32_t)(gasWindowDesc.height * gasWindowDesc.dpiBackingScale[1]);
 	ASSERT(swapChainDesc.width);
 	ASSERT(swapChainDesc.height);
 	swapChainDesc.imageCount = swapImageCount;
@@ -71,8 +71,8 @@ Display_ContextHandle Display_Create(TheForge_RendererHandle renderer,
 	depthRTDesc.clearValue.stencil = 0;
 	depthRTDesc.depth = 1;
 	depthRTDesc.format = TheForge_IF_D32F;
-	depthRTDesc.width = gasWindowDesc.width  * gasWindowDesc.dpiBackingScale[0];
-	depthRTDesc.height = gasWindowDesc.height * gasWindowDesc.dpiBackingScale[1];
+	depthRTDesc.width = (uint32_t)(gasWindowDesc.width  * gasWindowDesc.dpiBackingScale[0]);
+	depthRTDesc.height = (uint32_t)(gasWindowDesc.height * gasWindowDesc.dpiBackingScale[1]);
 	depthRTDesc.mipLevels = 1;
 	ASSERT(depthRTDesc.width);
 	ASSERT(depthRTDesc.height);
