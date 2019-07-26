@@ -384,10 +384,14 @@ void TextureViewer_Render(TextureViewerHandle handle, TheForge_CmdHandle cmd, ui
 	TheForge_UpdateBuffer(&uniformsUpdate, true);
 
 	ImDrawData *drawData = ImGui::GetDrawData();
-	ImVec2 const displayPos = drawData->DisplayPos;
+	ImVec2 displayPos = drawData->DisplayPos;
+	displayPos.x *= drawData->FramebufferScale.x;
+	displayPos.y *= drawData->FramebufferScale.y;
 
 	TheForge_CmdSetViewport(cmd, 0.0f, 0.0f,
-													drawData->DisplaySize.x, drawData->DisplaySize.y, 0.0f, 1.0f);
+													drawData->DisplaySize.x * drawData->FramebufferScale.x,
+													drawData->DisplaySize.y  * drawData->FramebufferScale.y,
+													0.0f, 1.0f);
 	TheForge_CmdBindPipeline(cmd, ctx->pipeline);
 
 	TheForge_BufferHandle vertexBuffers[] = {ImguiBindings_GetVertexBuffer(ctx->imgui)};
@@ -398,23 +402,30 @@ void TextureViewer_Render(TextureViewerHandle handle, TheForge_CmdHandle cmd, ui
 	params[0].pName = "uniformBlock";
 	params[0].pBuffers = &ctx->uniformBuffer;
 	params[0].pOffsets = &baseUniformOffset;
+	params[0].count = 1;
 
 	TheForge_CmdBindDescriptors(cmd, ctx->descriptorBinder, ctx->rootSignature, 1, params);
 
 	for (auto i = 0u; i < CADT_VectorSize(ctx->renderList); ++i) {
 		auto imcmd = (ImDrawCmd const *) CADT_VectorAt(ctx->renderList, i);
 		ASSERT(imcmd->UserCallbackData == handle);
+		float const clipX = imcmd->ClipRect.x * drawData->FramebufferScale.x;
+		float const clipY = imcmd->ClipRect.y * drawData->FramebufferScale.y;
+		float const clipZ = imcmd->ClipRect.z * drawData->FramebufferScale.x;
+		float const clipW = imcmd->ClipRect.w * drawData->FramebufferScale.y;
+
 		TheForge_CmdSetScissor(cmd,
-													 (uint32_t) (imcmd->ClipRect.x - displayPos.x),
-													 (uint32_t) (imcmd->ClipRect.y - displayPos.y),
-													 (uint32_t) (imcmd->ClipRect.z - imcmd->ClipRect.x),
-													 (uint32_t) (imcmd->ClipRect.w - imcmd->ClipRect.y));
+													 (uint32_t) (clipX - displayPos.x),
+													 (uint32_t) (clipY - displayPos.y),
+													 (uint32_t) (clipZ - clipX),
+													 (uint32_t) (clipW - clipY));
 
 		ImguiBindings_Texture const
 				*texture = imcmd->TextureId ? (ImguiBindings_Texture const *) imcmd->TextureId : nullptr;
 		TheForge_DescriptorData params[1] = {};
 		params[0].pName = "colourTexture";
 		params[0].pTextures = &(texture->gpu);
+		params[0].count = 1;
 		TheForge_CmdBindDescriptors(cmd, ctx->descriptorBinder, ctx->rootSignature, 1, params);
 
 		TheForge_CmdDrawIndexed(cmd, 6, imcmd->IdxOffset - 6, imcmd->VtxOffset);

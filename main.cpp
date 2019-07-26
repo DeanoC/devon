@@ -168,8 +168,13 @@ static void Update(double deltaMS) {
 	GameAppShell_WindowDesc windowDesc;
 	GameAppShell_WindowGetCurrentDesc(&windowDesc);
 
+
 	InputBasic_SetWindowSize(input, windowDesc.width, windowDesc.height);
-	ImguiBindings_SetWindowSize(imguiBindings, windowDesc.width, windowDesc.height);
+	ImguiBindings_SetWindowSize(imguiBindings,
+															windowDesc.width,
+															windowDesc.height,
+															windowDesc.dpiBackingScale[0],
+															windowDesc.dpiBackingScale[1]);
 
 	InputBasic_Update(input, deltaMS);
 	if (InputBasic_GetAsBool(input, AppKey_Quit)) {
