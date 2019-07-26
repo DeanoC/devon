@@ -33,6 +33,7 @@ struct TextureViewer {
 
 	UniformBuffer uniforms;
 	bool colourChannelEnable[4];
+	float zoom;
 
 	TheForge_CmdHandle cmd; // only valid during a render
 	uint32_t currentFrame;
@@ -174,7 +175,7 @@ TextureViewerHandle TextureViewer_Create(TheForge_RendererHandle renderer,
 	};
 	static TheForge_DepthStateDesc const depthStateDesc{
 			false, false,
-            TheForge_CMP_ALWAYS
+			TheForge_CMP_ALWAYS
 	};
 	static TheForge_RasterizerStateDesc const rasterizerStateDesc{
 			TheForge_CM_NONE,
@@ -268,6 +269,7 @@ TextureViewerHandle TextureViewer_Create(TheForge_RendererHandle renderer,
 	ctx->colourChannelEnable[1] = true;
 	ctx->colourChannelEnable[2] = true;
 	ctx->colourChannelEnable[3] = true;
+	ctx->zoom = 1.0f;
 
 	return ctx;
 }
@@ -341,7 +343,7 @@ void TextureViewer_DrawUI(TextureViewerHandle handle, ImguiBindings_Texture *tex
 	if (!ctx)
 		return;
 
-	ImGuiWindowFlags window_flags = 0;
+	ImGuiWindowFlags window_flags = ImGuiWindowFlags_AlwaysAutoResize;
 
 	ImGui::Begin("TextureViewer", nullptr, window_flags);
 
@@ -355,11 +357,11 @@ void TextureViewer_DrawUI(TextureViewerHandle handle, ImguiBindings_Texture *tex
 	ImGui::Checkbox("R", ctx->colourChannelEnable + 0); ImGui::SameLine();
 	ImGui::Checkbox("G", ctx->colourChannelEnable + 1); ImGui::SameLine();
 	ImGui::Checkbox("B", ctx->colourChannelEnable + 2); ImGui::SameLine();
-	ImGui::Checkbox("A", ctx->colourChannelEnable + 3);
-
+	ImGui::Checkbox("A", ctx->colourChannelEnable + 3); ImGui::SameLine();
 	if (texture) {
-		ImVec2 const rb {window->DC.CursorPos.x + (texture->cpu->width * 32),
-										 window->DC.CursorPos.y + (texture->cpu->height * 32) };
+		ImGui::SliderFloat("Zoom", &ctx->zoom, 1.0f/texture->cpu->width, 256.0f, "%.3f", 2);
+		ImVec2 rb {window->DC.CursorPos.x + (texture->cpu->width * ctx->zoom),
+										 window->DC.CursorPos.y + (texture->cpu->height * ctx->zoom) };
 		ImRect const bb(window->DC.CursorPos, rb );
 
 		drawList->PushTextureID(texture);
@@ -368,6 +370,11 @@ void TextureViewer_DrawUI(TextureViewerHandle handle, ImguiBindings_Texture *tex
 		drawList->CmdBuffer.back().ElemCount = 0; // stop the rect rendering instead do a callback
 		drawList->AddCallback(&ImCallback, handle);
 		drawList->PopTextureID();
+
+		// size of the auto size window takes
+		if(rb.y < window->DC.CursorPos.y + 32.0f) rb.y = window->DC.CursorPos.y + 32.0f;
+		ImRect const bb2(window->DC.CursorPos, rb );
+		ImGui::ItemSize(bb2);
 	}
 
 	ImGui::End();
