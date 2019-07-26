@@ -203,20 +203,20 @@ TextureViewerHandle TextureViewer_Create(TheForge_RendererHandle renderer,
 
 	TheForge_AddSampler(ctx->renderer, &pointSamplerDesc, &ctx->pointSampler);
 	if (!ctx->pointSampler)
-		return false;
+		return nullptr;
 	TheForge_AddSampler(ctx->renderer, &bilinearSamplerDesc, &ctx->bilinearSampler);
 	if (!ctx->bilinearSampler)
-		return false;
+		return nullptr;
 
 	TheForge_AddBlendState(ctx->renderer, &blendDesc, &ctx->blendState);
 	if (!ctx->blendState)
-		return false;
+		return nullptr;
 	TheForge_AddDepthState(ctx->renderer, &depthStateDesc, &ctx->depthState);
 	if (!ctx->depthState)
-		return false;
+		return nullptr;
 	TheForge_AddRasterizerState(ctx->renderer, &rasterizerStateDesc, &ctx->rasterizationState);
 	if (!ctx->rasterizationState)
-		return false;
+		return nullptr;
 
 	TheForge_ShaderHandle shaders[]{ctx->shader};
 	TheForge_SamplerHandle samplers[]{ctx->pointSampler, ctx->bilinearSampler};
@@ -230,7 +230,7 @@ TextureViewerHandle TextureViewer_Create(TheForge_RendererHandle renderer,
 	rootSignatureDesc.pStaticSamplers = samplers;
 	TheForge_AddRootSignature(ctx->renderer, &rootSignatureDesc, &ctx->rootSignature);
 	if (!ctx->rootSignature)
-		return false;
+		return nullptr;
 
 	TheForge_PipelineDesc pipelineDesc{};
 	pipelineDesc.type = TheForge_PT_GRAPHICS;
@@ -250,7 +250,7 @@ TextureViewerHandle TextureViewer_Create(TheForge_RendererHandle renderer,
 	gfxPipeDesc.primitiveTopo = TheForge_PT_TRI_LIST;
 	TheForge_AddPipeline(ctx->renderer, &pipelineDesc, &ctx->pipeline);
 	if (!ctx->pipeline)
-		return false;
+		return nullptr;
 
 	TheForge_DescriptorBinderDesc descriptorBinderDesc[] = {
 			{ctx->rootSignature, 20},
@@ -258,11 +258,11 @@ TextureViewerHandle TextureViewer_Create(TheForge_RendererHandle renderer,
 	};
 	TheForge_AddDescriptorBinder(ctx->renderer, 0, 2, descriptorBinderDesc, &ctx->descriptorBinder);
 	if (!ctx->descriptorBinder)
-		return false;
+		return nullptr;
 
 	TheForge_AddBuffer(ctx->renderer, &ubDesc, &ctx->uniformBuffer);
 	if (!ctx->uniformBuffer)
-		return false;
+		return nullptr;
 
 	// defaults
 	ctx->colourChannelEnable[0] = true;
