@@ -1,7 +1,7 @@
 #include "al2o3_platform/platform.h"
 #include "al2o3_memory/memory.h"
+#include "al2o3_enki/TaskScheduler_c.h"
 #include "gfx_theforge/theforge.h"
-#include "gfx_theforge/al2o3_helpers.h"
 #include "gfx_imageio/io.h"
 #include "utils_gameappshell/gameappshell.h"
 #include "utils_simple_logmanager/logmanager.h"
@@ -11,6 +11,7 @@
 #include "input_basic/input.h"
 #include "gfx_imgui_al2o3_theforge_bindings/bindings.h"
 #include "gfx_imgui/imgui.h"
+
 
 #include "devon_display.h"
 #include "texture_viewer.hpp"
@@ -29,6 +30,7 @@ InputBasic_KeyboardHandle keyboard;
 InputBasic_MouseHandle mouse;
 
 TextureViewerHandle textureViewer;
+enkiTaskSchedulerHandle taskScheduler;
 
 enum AppKey {
 	AppKey_Quit
@@ -36,6 +38,13 @@ enum AppKey {
 
 ImguiBindings_ContextHandle imguiBindings;
 ImguiBindings_Texture textureToView;
+
+static void* EnkiAlloc(void* userData, size_t size) {
+	return MEMORY_ALLOCATOR_MALLOC( (Memory_Allocator*)userData, size );
+}
+static void EnkiFree(void* userData, void* ptr) {
+	MEMORY_ALLOCATOR_FREE( (Memory_Allocator*)userData, ptr );
+}
 
 static bool Init() {
 
@@ -65,6 +74,8 @@ static bool Init() {
 		LOGERROR("ShaderCompiler_Create failed");
 		return false;
 	}
+
+	taskScheduler = enkiNewTaskScheduler(&EnkiAlloc, &EnkiFree, &Memory_GlobalAllocator);
 
 	// create basic graphics queues fences etc.
 	TheForge_QueueDesc queueDesc{};
@@ -239,6 +250,8 @@ static void Exit() {
 
 	TheForge_RemoveCmdPool(renderer, cmdPool);
 	TheForge_RemoveQueue(graphicsQueue);
+
+	enkiDeleteTaskScheduler(taskScheduler);
 	ShaderCompiler_Destroy(shaderCompiler);
 	TheForge_RendererDestroy(renderer);
 }

@@ -8,6 +8,7 @@
     <mapping directory="$PROJECT_DIR$/fetchdeps/al2o3_cadt-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/fetchdeps/al2o3_catch2-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/fetchdeps/al2o3_cmath-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/fetchdeps/al2o3_enki-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/fetchdeps/al2o3_memory-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/fetchdeps/al2o3_os-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/fetchdeps/al2o3_platform-src" vcs="Git" />
@@ -38,6 +39,7 @@
     <mapping directory="$PROJECT_DIR$/fetchdeps/tiny_dds-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/fetchdeps/tiny_imageformat-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/fetchdeps/tiny_ktx-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/fetchdeps/utils_enki-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/fetchdeps/utils_gameappshell_impl_basic-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/fetchdeps/utils_gameappshell_interface-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/fetchdeps/utils_misccpp-src" vcs="Git" />

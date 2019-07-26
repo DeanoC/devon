@@ -27,6 +27,7 @@ set(Deps
 		al2o3_cadt
 		al2o3_tinystl
 		al2o3_vfile
+		al2o3_enki
 		gfx_image_interface
 		gfx_image_impl_basic
 		gfx_imageio
