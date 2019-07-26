@@ -40,7 +40,11 @@ ImguiBindings_Texture textureToView;
 static bool Init() {
 
 #if AL2O3_PLATFORM == AL2O3_PLATFORM_APPLE_MAC
-	Os_SetCurrentDir("../..");
+//	Os_SetCurrentDir("../.."); // for xcode, no idea...
+	Os_SetCurrentDir("..");
+	char currentDir[2048];
+	Os_GetCurrentDir(currentDir, 2048);
+	LOGINFO(currentDir);
 #endif
 
 	// window and renderer setup
@@ -52,10 +56,13 @@ static bool Init() {
 
 	renderer = TheForge_RendererCreate("Devon", &desc);
 	if (!renderer) {
+		LOGERROR("TheForge_RendererCreate failed");
+
 		return false;
 	}
 	shaderCompiler = ShaderCompiler_Create();
 	if (!shaderCompiler) {
+		LOGERROR("ShaderCompiler_Create failed");
 		return false;
 	}
 
@@ -97,8 +104,11 @@ static bool Load() {
                                          Display_IsBackBufferSrgb(display),
 																			 TheForge_SC_1,
 																			 0);
-	if (!imguiBindings)
+	if (!imguiBindings) {
+		LOGERROR("ImguiBindings_Create failed");
 		return false;
+	}
+
 
 	textureViewer = TextureViewer_Create(renderer,
 																			 shaderCompiler,
@@ -109,11 +119,16 @@ static bool Load() {
 																			 Display_IsBackBufferSrgb(display),
 																			 TheForge_SC_1,
 																			 0);
-    if(!textureViewer) return false;
+    if(!textureViewer) {
+			LOGERROR("TextureViewer_Create failed");
+    	return false;
+    }
 
 	VFile_Handle fh = VFile_FromFile("fmtcheck_B8G8R8A8_UNORM_16x16.ktx", Os_FM_ReadBinary);
-	if (!fh)
+	if (!fh) {
+		LOGERROR("Load From File failed");
 		return false;
+	}
 	textureToView.cpu = Image_Load(fh);
 	VFile_Close(fh);
 
