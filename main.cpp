@@ -200,7 +200,7 @@ static void Draw(double deltaMS) {
 
 	TheForge_LoadActionsDesc loadActions = {0};
 	loadActions.loadActionsColor[0] = TheForge_LA_CLEAR;
-    loadActions.clearColorValues[0] = {1.0f, 1.0f, 0.0f, 1.0f};//{0.45f, 0.5f, 0.6f, 0.0f};
+	loadActions.clearColorValues[0] = {0.45f, 0.5f, 0.6f, 0.0f};
 	loadActions.loadActionDepth = TheForge_LA_CLEAR;
 	loadActions.clearDepth.depth = 1.0f;
 	loadActions.clearDepth.stencil = 0;
