@@ -175,7 +175,8 @@ TextureViewerHandle TextureViewer_Create(TheForge_RendererHandle renderer,
 			false, false
 	};
 	static TheForge_DepthStateDesc const depthStateDesc{
-			false, false
+			false, false,
+            TheForge_CMP_ALWAYS
 	};
 	static TheForge_RasterizerStateDesc const rasterizerStateDesc{
 			TheForge_CM_NONE,

@@ -40,7 +40,7 @@ ImguiBindings_Texture textureToView;
 static bool Init() {
 
 #if AL2O3_PLATFORM == AL2O3_PLATFORM_APPLE_MAC
-	Os_SetCurrentDir("..");
+	Os_SetCurrentDir("../..");
 #endif
 
 	// window and renderer setup
@@ -88,13 +88,16 @@ static bool Init() {
 }
 
 static bool Load() {
+    
+    bool const sRGB = Display_IsBackBufferSrgb(display);
+
 
 	imguiBindings = ImguiBindings_Create(renderer, shaderCompiler, input,
 																			 20,
 																			 FRAMES_AHEAD,
 																			 Display_GetBackBufferFormat(display),
 																			 Display_GetDepthBufferFormat(display),
-																			 Display_IsBackBufferSrgb(display),
+                                         sRGB,
 																			 TheForge_SC_1,
 																			 0);
 	if (!imguiBindings)
@@ -109,6 +112,7 @@ static bool Load() {
 																			 Display_IsBackBufferSrgb(display),
 																			 TheForge_SC_1,
 																			 0);
+    if(!textureViewer) return false;
 
 	VFile_Handle fh = VFile_FromFile("fmtcheck_B8G8R8A8_UNORM_16x16.ktx", Os_FM_ReadBinary);
 	if (!fh)
@@ -173,7 +177,7 @@ static void Draw(double deltaMS) {
 
 	TheForge_LoadActionsDesc loadActions = {0};
 	loadActions.loadActionsColor[0] = TheForge_LA_CLEAR;
-	loadActions.clearColorValues[0] = {0.45f, 0.5f, 0.6f, 0.0f};
+    loadActions.clearColorValues[0] = {1.0f, 1.0f, 0.0f, 1.0f};//{0.45f, 0.5f, 0.6f, 0.0f};
 	loadActions.loadActionDepth = TheForge_LA_CLEAR;
 	loadActions.clearDepth.depth = 1.0f;
 	loadActions.clearDepth.stencil = 0;

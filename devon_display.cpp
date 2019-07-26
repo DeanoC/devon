@@ -202,7 +202,7 @@ TheForge_ImageFormat Display_GetBackBufferFormat(Display_ContextHandle handle) {
 }
 bool Display_IsBackBufferSrgb(Display_ContextHandle handle) {
 	Display_Context *ctx = (Display_Context *) handle;
-	if(!ctx) return TheForge_IF_NONE;
+	if(!ctx) return false;
 
 	TheForge_RenderTargetHandle renderTarget = TheForge_SwapChainGetRenderTarget(ctx->swapChain, ctx->frameIndex);
 	TheForge_RenderTargetDesc const* desc = TheForge_RenderTargetGetDesc(renderTarget);
