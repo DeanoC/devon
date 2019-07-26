@@ -89,15 +89,12 @@ static bool Init() {
 
 static bool Load() {
     
-    bool const sRGB = Display_IsBackBufferSrgb(display);
-
-
 	imguiBindings = ImguiBindings_Create(renderer, shaderCompiler, input,
 																			 20,
 																			 FRAMES_AHEAD,
 																			 Display_GetBackBufferFormat(display),
 																			 Display_GetDepthBufferFormat(display),
-                                         sRGB,
+                                         Display_IsBackBufferSrgb(display),
 																			 TheForge_SC_1,
 																			 0);
 	if (!imguiBindings)
