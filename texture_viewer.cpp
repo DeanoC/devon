@@ -269,7 +269,7 @@ TextureViewerHandle TextureViewer_Create(TheForge_RendererHandle renderer,
 	ctx->colourChannelEnable[1] = true;
 	ctx->colourChannelEnable[2] = true;
 	ctx->colourChannelEnable[3] = true;
-	ctx->zoom = 1.0f;
+	ctx->zoom = 100.0f;
 
 	return ctx;
 }
@@ -318,6 +318,15 @@ static void ImCallback(ImDrawList const *list, ImDrawCmd const *imcmd) {
 
 	TheForge_CmdBindPipeline(ctx->cmd, ctx->pipeline);
 
+    uint64_t const baseUniformOffset = ctx->currentFrame * UNIFORM_BUFFER_SIZE_PER_FRAME;
+    TheForge_DescriptorData paramsx[1] {};
+    paramsx[0].pName = "uniformBlock";
+    paramsx[0].pBuffers = &ctx->uniformBuffer;
+    paramsx[0].pOffsets = &baseUniformOffset;
+    paramsx[0].count = 1;
+    TheForge_CmdBindDescriptors(ctx->cmd, ctx->descriptorBinder, ctx->rootSignature, 1, paramsx);
+    
+    
 	TheForge_DescriptorData params[2] {};
 	params[0].pName = "colourTexture";
 	params[0].pTextures = &(texture->gpu);
@@ -387,9 +396,20 @@ void TextureViewer_RenderSetup(TextureViewerHandle handle, TheForge_CmdHandle cm
 
 	static_assert(sizeof(UniformBuffer) < UNIFORM_BUFFER_SIZE_PER_FRAME);
 
+    ctx->currentFrame = (ctx->currentFrame + 1) % ctx->maxFrames;
+
 	uint64_t const baseUniformOffset = ctx->currentFrame * UNIFORM_BUFFER_SIZE_PER_FRAME;
 	memcpy(ctx->uniforms.scaleOffsetMatrix, ImguiBindings_GetScaleOffsetMatrix(ctx->imgui), sizeof(float) * 16);
-
+    
+    TheForge_BufferUpdateDesc const uniformsUpdate{
+        ctx->uniformBuffer,
+        (void const *) &ctx->uniforms,
+        0,
+        baseUniformOffset,
+        UNIFORM_BUFFER_SIZE_PER_FRAME
+    };
+    
+    TheForge_UpdateBuffer(&uniformsUpdate, true);
 	if((ctx->colourChannelEnable[0] == false) &&
 			(ctx->colourChannelEnable[1] == false) &&
 			(ctx->colourChannelEnable[2] == false) &&
@@ -402,23 +422,6 @@ void TextureViewer_RenderSetup(TextureViewerHandle handle, TheForge_CmdHandle cm
 		ctx->uniforms.colourMask[2] = ctx->colourChannelEnable[2] ? 1.0f : 0.0f;
 		ctx->uniforms.colourMask[3] = ctx->colourChannelEnable[3] ? 1.0f : 0.0f;
 	}
-	TheForge_BufferUpdateDesc const uniformsUpdate{
-			ctx->uniformBuffer,
-			(void const *) &ctx->uniforms,
-			0,
-			baseUniformOffset,
-			UNIFORM_BUFFER_SIZE_PER_FRAME
-	};
-	TheForge_UpdateBuffer(&uniformsUpdate, true);
 
-	TheForge_DescriptorData params[1] {};
-	params[0].pName = "uniformBlock";
-	params[0].pBuffers = &ctx->uniformBuffer;
-	params[0].pOffsets = &baseUniformOffset;
-	params[0].count = 1;
-	TheForge_CmdBindDescriptors(cmd, ctx->descriptorBinder, ctx->rootSignature, 1, params);
-
-	// where we will write next frame data, which was last used N frame ago
 	ctx->cmd = cmd;
-	ctx->currentFrame = (ctx->currentFrame + 1) % ctx->maxFrames;
 }

@@ -49,8 +49,8 @@ static void EnkiFree(void* userData, void* ptr) {
 static bool Init() {
 
 #if AL2O3_PLATFORM == AL2O3_PLATFORM_APPLE_MAC
-//	Os_SetCurrentDir("../.."); // for xcode, no idea...
-	Os_SetCurrentDir("..");
+	Os_SetCurrentDir("../.."); // for xcode, no idea...
+//	Os_SetCurrentDir("..");
 	char currentDir[2048];
 	Os_GetCurrentDir(currentDir, 2048);
 	LOGINFO(currentDir);
