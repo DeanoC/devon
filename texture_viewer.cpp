@@ -9,6 +9,7 @@ struct UniformBuffer {
 	float scaleOffsetMatrix[16];
 	float colourMask[4];
 	float alphaReplicate;
+	int32_t forceMipLevel;
 
 };
 
@@ -37,6 +38,8 @@ struct TextureViewer {
 
 	TheForge_CmdHandle cmd; // only valid during a render
 	uint32_t currentFrame;
+
+	char *windowName;
 };
 
 namespace {
@@ -269,7 +272,11 @@ TextureViewerHandle TextureViewer_Create(TheForge_RendererHandle renderer,
 	ctx->colourChannelEnable[1] = true;
 	ctx->colourChannelEnable[2] = true;
 	ctx->colourChannelEnable[3] = true;
-	ctx->zoom = 100.0f;
+	ctx->zoom = 1.0f;
+
+	static char const DefaultName[] = "Texture Viewer";
+	ctx->windowName = (char*) MEMORY_CALLOC(strlen(DefaultName)+1,1);
+	memcpy(ctx->windowName, DefaultName, strlen(DefaultName));
 
 	return ctx;
 }
@@ -278,6 +285,8 @@ void TextureViewer_Destroy(TextureViewerHandle handle) {
 	auto ctx = (TextureViewer *) handle;
 	if (!ctx)
 		return;
+
+	MEMORY_FREE(ctx->windowName);
 
 	if (ctx->uniformBuffer)
 		TheForge_RemoveBuffer(ctx->renderer, ctx->uniformBuffer);
@@ -304,12 +313,12 @@ void TextureViewer_Destroy(TextureViewerHandle handle) {
 }
 static void ImCallback(ImDrawList const *list, ImDrawCmd const *imcmd) {
 
-	if(imcmd->TextureId == nullptr)
+	if (imcmd->TextureId == nullptr)
 		return;
 
 	auto ctx = (TextureViewer *) imcmd->UserCallbackData;
 
-	ImguiBindings_Texture const* texture = (ImguiBindings_Texture*)imcmd->TextureId;
+	ImguiBindings_Texture const *texture = (ImguiBindings_Texture *) imcmd->TextureId;
 
 	ImDrawData *drawData = ImGui::GetDrawData();
 	ImVec2 displayPos = drawData->DisplayPos;
@@ -318,16 +327,15 @@ static void ImCallback(ImDrawList const *list, ImDrawCmd const *imcmd) {
 
 	TheForge_CmdBindPipeline(ctx->cmd, ctx->pipeline);
 
-    uint64_t const baseUniformOffset = ctx->currentFrame * UNIFORM_BUFFER_SIZE_PER_FRAME;
-    TheForge_DescriptorData paramsx[1] {};
-    paramsx[0].pName = "uniformBlock";
-    paramsx[0].pBuffers = &ctx->uniformBuffer;
-    paramsx[0].pOffsets = &baseUniformOffset;
-    paramsx[0].count = 1;
-    TheForge_CmdBindDescriptors(ctx->cmd, ctx->descriptorBinder, ctx->rootSignature, 1, paramsx);
-    
-    
-	TheForge_DescriptorData params[2] {};
+	uint64_t const baseUniformOffset = ctx->currentFrame * UNIFORM_BUFFER_SIZE_PER_FRAME;
+	TheForge_DescriptorData paramsx[1]{};
+	paramsx[0].pName = "uniformBlock";
+	paramsx[0].pBuffers = &ctx->uniformBuffer;
+	paramsx[0].pOffsets = &baseUniformOffset;
+	paramsx[0].count = 1;
+	TheForge_CmdBindDescriptors(ctx->cmd, ctx->descriptorBinder, ctx->rootSignature, 1, paramsx);
+
+	TheForge_DescriptorData params[2]{};
 	params[0].pName = "colourTexture";
 	params[0].pTextures = &(texture->gpu);
 	params[0].count = 1;
@@ -354,37 +362,50 @@ void TextureViewer_DrawUI(TextureViewerHandle handle, ImguiBindings_Texture *tex
 
 	ImGuiWindowFlags window_flags = ImGuiWindowFlags_AlwaysAutoResize;
 
-	ImGui::Begin("TextureViewer", nullptr, window_flags);
+	ImGui::Begin(ctx->windowName, nullptr, window_flags);
 
-	ImGuiWindow* window = ImGui::GetCurrentWindow();
+	ImGuiWindow *window = ImGui::GetCurrentWindow();
 	ImDrawList *drawList = ImGui::GetWindowDrawList();
-	if (window->SkipItems) {
+	if (window->SkipItems || !texture) {
 		ImGui::End();
 		return;
 	}
 
-	ImGui::Checkbox("R", ctx->colourChannelEnable + 0); ImGui::SameLine();
-	ImGui::Checkbox("G", ctx->colourChannelEnable + 1); ImGui::SameLine();
-	ImGui::Checkbox("B", ctx->colourChannelEnable + 2); ImGui::SameLine();
-	ImGui::Checkbox("A", ctx->colourChannelEnable + 3); ImGui::SameLine();
-	if (texture) {
-		ImGui::SliderFloat("Zoom", &ctx->zoom, 1.0f/texture->cpu->width, 256.0f, "%.3f", 2);
-		ImVec2 rb {window->DC.CursorPos.x + (texture->cpu->width * ctx->zoom),
-										 window->DC.CursorPos.y + (texture->cpu->height * ctx->zoom) };
-		ImRect const bb(window->DC.CursorPos, rb );
+	ImGui::Checkbox("R", ctx->colourChannelEnable + 0);
+	ImGui::SameLine();
+	ImGui::Checkbox("G", ctx->colourChannelEnable + 1);
+	ImGui::SameLine();
+	ImGui::Checkbox("B", ctx->colourChannelEnable + 2);
+	ImGui::SameLine();
+	ImGui::Checkbox("A", ctx->colourChannelEnable + 3);
+	ImGui::SameLine();
 
-		drawList->PushTextureID(texture);
-		drawList->PrimReserve(6, 4);
-		drawList->PrimRectUV(bb.Min, bb.Max, {0,0}, {1,1}, 0xFFFFFFFF );
-		drawList->CmdBuffer.back().ElemCount = 0; // stop the rect rendering instead do a callback
-		drawList->AddCallback(&ImCallback, handle);
-		drawList->PopTextureID();
+	ImGui::SliderFloat("Zoom", &ctx->zoom, 1.0f / texture->cpu->width, 256.0f, "%.3f", 2);
+	ImVec2 rb{window->DC.CursorPos.x + (texture->cpu->width * ctx->zoom),
+						window->DC.CursorPos.y + (texture->cpu->height * ctx->zoom)};
+	ImRect const bb(window->DC.CursorPos, rb);
 
-		// size of the auto size window takes
-		if(rb.y < window->DC.CursorPos.y + 32.0f) rb.y = window->DC.CursorPos.y + 32.0f;
-		ImRect const bb2(window->DC.CursorPos, rb );
-		ImGui::ItemSize(bb2);
+	drawList->PushTextureID(texture);
+	drawList->PrimReserve(6, 4);
+	drawList->PrimRectUV(bb.Min, bb.Max, {0, 0}, {1, 1}, 0xFFFFFFFF);
+	drawList->CmdBuffer.back().ElemCount = 0; // stop the rect rendering instead do a callback
+	drawList->AddCallback(&ImCallback, handle);
+	drawList->PopTextureID();
+
+	// size of the auto size window takes
+	if (rb.y < window->DC.CursorPos.y + 32.0f)
+		rb.y = window->DC.CursorPos.y + 32.0f;
+	ImRect const bb2(window->DC.CursorPos, rb);
+	ImGui::ItemSize(bb2);
+	int forceMipLevel = 0;
+
+	if(Image_LinkedImageCountOf(texture->cpu) > 1) {
+		forceMipLevel = (int) ctx->uniforms.forceMipLevel;
+		ImGui::SameLine();
+		ImGui::VSliderInt("Mipmap Level", ImVec2(20.0f, 100.0f),
+											&forceMipLevel, 0, (int) Image_LinkedImageCountOf(texture->cpu)-1);
 	}
+	ctx->uniforms.forceMipLevel = (int32_t)forceMipLevel;
 
 	ImGui::End();
 }
@@ -396,24 +417,15 @@ void TextureViewer_RenderSetup(TextureViewerHandle handle, TheForge_CmdHandle cm
 
 	static_assert(sizeof(UniformBuffer) < UNIFORM_BUFFER_SIZE_PER_FRAME);
 
-    ctx->currentFrame = (ctx->currentFrame + 1) % ctx->maxFrames;
+	ctx->currentFrame = (ctx->currentFrame + 1) % ctx->maxFrames;
 
 	uint64_t const baseUniformOffset = ctx->currentFrame * UNIFORM_BUFFER_SIZE_PER_FRAME;
 	memcpy(ctx->uniforms.scaleOffsetMatrix, ImguiBindings_GetScaleOffsetMatrix(ctx->imgui), sizeof(float) * 16);
-    
-    TheForge_BufferUpdateDesc const uniformsUpdate{
-        ctx->uniformBuffer,
-        (void const *) &ctx->uniforms,
-        0,
-        baseUniformOffset,
-        UNIFORM_BUFFER_SIZE_PER_FRAME
-    };
-    
-    TheForge_UpdateBuffer(&uniformsUpdate, true);
-	if((ctx->colourChannelEnable[0] == false) &&
+
+	if ((ctx->colourChannelEnable[0] == false) &&
 			(ctx->colourChannelEnable[1] == false) &&
 			(ctx->colourChannelEnable[2] == false) &&
-			(ctx->colourChannelEnable[3] == true) ){
+			(ctx->colourChannelEnable[3] == true)) {
 		ctx->uniforms.alphaReplicate = 1.0f;
 	} else {
 		ctx->uniforms.alphaReplicate = 0.0f;
@@ -423,5 +435,26 @@ void TextureViewer_RenderSetup(TextureViewerHandle handle, TheForge_CmdHandle cm
 		ctx->uniforms.colourMask[3] = ctx->colourChannelEnable[3] ? 1.0f : 0.0f;
 	}
 
+	TheForge_BufferUpdateDesc const uniformsUpdate{
+			ctx->uniformBuffer,
+			(void const *) &ctx->uniforms,
+			0,
+			baseUniformOffset,
+			UNIFORM_BUFFER_SIZE_PER_FRAME
+	};
+
+	TheForge_UpdateBuffer(&uniformsUpdate, true);
+
 	ctx->cmd = cmd;
+}
+
+void TextureViewer_SetWindowName(TextureViewerHandle handle, char const* windowName ) {
+	auto ctx = (TextureViewer *) handle;
+	if (!ctx)
+		return;
+
+	MEMORY_FREE(ctx->windowName);
+	ctx->windowName = (char*) MEMORY_CALLOC(strlen(windowName)+1,1);
+	memcpy(ctx->windowName, windowName, strlen(windowName));
+
 }

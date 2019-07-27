@@ -1,8 +1,10 @@
+#include <cstdio>
 #include "al2o3_platform/platform.h"
 #include "al2o3_memory/memory.h"
 #include "al2o3_enki/TaskScheduler_c.h"
 #include "gfx_theforge/theforge.h"
 #include "gfx_imageio/io.h"
+#include "gfx_image/utils.h"
 #include "utils_gameappshell/gameappshell.h"
 #include "utils_simple_logmanager/logmanager.h"
 #include "gfx_shadercompiler/compiler.h"
@@ -11,7 +13,7 @@
 #include "input_basic/input.h"
 #include "gfx_imgui_al2o3_theforge_bindings/bindings.h"
 #include "gfx_imgui/imgui.h"
-
+#include "utils_nativefiledialogs/dialogs.h"
 
 #include "devon_display.h"
 #include "texture_viewer.hpp"
@@ -46,11 +48,156 @@ static void EnkiFree(void* userData, void* ptr) {
 	MEMORY_ALLOCATOR_FREE( (Memory_Allocator*)userData, ptr );
 }
 
+static void LoadTextureToView(char const* fileName)
+{
+	if(textureToView.cpu != nullptr) {
+		Image_Destroy(textureToView.cpu);
+		textureToView.cpu = nullptr;
+	}
+	if(textureToView.gpu != nullptr) {
+		TheForge_RemoveTexture(renderer, textureToView.gpu);
+		textureToView.gpu = nullptr;
+	}
+
+	VFile_Handle fh = VFile_FromFile(fileName, Os_FM_ReadBinary);
+	if (!fh) {
+		LOGERRORF("Load From File failed for %s", fileName);
+		return;
+	}
+
+	textureToView.cpu = Image_Load(fh);
+	VFile_Close(fh);
+
+	bool supported = TheForge_DoesSupportShaderReadFrom(renderer, textureToView.cpu->format);
+	if(!supported) {
+		// convert to R8G8B8A8 for now
+		if (!TinyImageFormat_IsCompressed(textureToView.cpu->format)) {
+			Image_ImageHeader const* converted = Image_FastConvert(textureToView.cpu, TinyImageFormat_R8G8B8A8_UNORM, true);
+			if(converted != textureToView.cpu) {
+				Image_Destroy(textureToView.cpu);
+				textureToView.cpu = converted;
+			}
+		} else {
+			LOGINFOF("%s with format %s isn't supported by this GPU/backend",
+							 fileName,
+							 TinyImageFormat_Name(textureToView.cpu->format));
+			Image_Destroy(textureToView.cpu);
+			textureToView.cpu = nullptr;
+			return;
+		}
+	}
+
+	if(Image_LinkedImageCountOf(textureToView.cpu) > 1) {
+		Image_ImageHeader const * packed = Image_PackMipmaps(textureToView.cpu);
+		if(textureToView.cpu != packed) {
+			Image_Destroy(textureToView.cpu);
+			textureToView.cpu = packed;
+		}
+		ASSERT(Image_HasPackedMipMaps(textureToView.cpu));
+	}
+
+	size_t startOfFileName = 0;
+	size_t startOfFileNameExt = 0;
+
+	Os_SplitPath(fileName, &startOfFileName, &startOfFileNameExt);
+
+	char tmpbuffer[2048];
+	sprintf(tmpbuffer, "%s - %ix%i - %s decode", fileName + startOfFileName,
+			textureToView.cpu->width,
+			textureToView.cpu->height,
+			supported ? "GPU" : "CPU"
+			);
+
+	TextureViewer_SetWindowName(textureViewer, tmpbuffer);
+
+	// use extended format
+	TheForge_RawImageData rawImageData{
+			(unsigned char *) Image_RawDataPtr(textureToView.cpu),
+			TheForge_IF_NONE,
+			textureToView.cpu->width,
+			textureToView.cpu->height,
+			textureToView.cpu->depth,
+			textureToView.cpu->slices,
+			(uint32_t) Image_LinkedImageCountOf(textureToView.cpu),
+			textureToView.cpu->format,
+	};
+
+	TheForge_TextureLoadDesc loadDesc{};
+	loadDesc.pRawImageData = &rawImageData;
+	loadDesc.pTexture = &textureToView.gpu;
+	loadDesc.mCreationFlag = TheForge_TCF_OWN_MEMORY_BIT;
+	TheForge_LoadTexture(&loadDesc, false);
+
+}
+
+// Note that shortcuts are currently provided for display only (future version will add flags to BeginMenu to process shortcuts)
+static void ShowMenuFile()
+{
+	if (ImGui::MenuItem("Open", "Ctrl+O")) {
+		char* fileName;
+		if(NativeFileDialogs_Load("ktx,dds,png,jpg,ppm", ".", &fileName) ) {
+			LoadTextureToView(fileName);
+			MEMORY_FREE(fileName);
+		}
+
+	}
+/*	if (ImGui::BeginMenu("Open Recent"))
+	{
+		ImGui::MenuItem("fish_hat.c");
+		ImGui::MenuItem("fish_hat.inl");
+		ImGui::MenuItem("fish_hat.h");
+		if (ImGui::BeginMenu("More.."))
+		{
+			ImGui::MenuItem("Hello");
+			ImGui::MenuItem("Sailor");
+			if (ImGui::BeginMenu("Recurse.."))
+			{
+				ShowExampleMenuFile();
+				ImGui::EndMenu();
+			}
+			ImGui::EndMenu();
+		}
+		ImGui::EndMenu();
+	}
+ */
+//	if (ImGui::MenuItem("Save", "Ctrl+S")) {}
+//	if (ImGui::MenuItem("Save As..")) {}
+	ImGui::Separator();
+	if (ImGui::MenuItem("Quit", "Alt+F4")) {
+		GameAppShell_Quit();
+	}
+}
+
+static void ShowAppMainMenuBar()
+{
+	if (ImGui::BeginMainMenuBar())
+	{
+		if (ImGui::BeginMenu("File"))
+		{
+			ShowMenuFile();
+			ImGui::EndMenu();
+		}
+		if (ImGui::BeginMenu("Edit"))
+		{
+/*			if (ImGui::MenuItem("Undo", "CTRL+Z")) {}
+			if (ImGui::MenuItem("Redo", "CTRL+Y", false, false)) {}  // Disabled item
+			ImGui::Separator();
+			if (ImGui::MenuItem("Cut", "CTRL+X")) {}
+			if (ImGui::MenuItem("Copy", "CTRL+C")) {}
+			if (ImGui::MenuItem("Paste", "CTRL+V")) {}*/
+			ImGui::EndMenu();
+
+		}
+		ImGui::EndMainMenuBar();
+	}
+}
+
+
 static bool Init() {
 
 #if AL2O3_PLATFORM == AL2O3_PLATFORM_APPLE_MAC
-	Os_SetCurrentDir("../.."); // for xcode, no idea...
-//	Os_SetCurrentDir("..");
+//	Os_SetCurrentDir("../.."); // for xcode, no idea...
+	Os_SetCurrentDir("..");
 	char currentDir[2048];
 	Os_GetCurrentDir(currentDir, 2048);
 	LOGINFO(currentDir);
@@ -135,31 +282,6 @@ static bool Load() {
     	return false;
     }
 
-	VFile_Handle fh = VFile_FromFile("fmtcheck_B8G8R8A8_UNORM_16x16.ktx", Os_FM_ReadBinary);
-	if (!fh) {
-		LOGERROR("Load From File failed");
-		return false;
-	}
-	textureToView.cpu = Image_Load(fh);
-	VFile_Close(fh);
-
-	// use extended format
-	TheForge_RawImageData rawImageData{
-			(unsigned char *) Image_RawDataPtr(textureToView.cpu),
-			TheForge_IF_NONE,
-			textureToView.cpu->width,
-			textureToView.cpu->height,
-			textureToView.cpu->depth,
-			textureToView.cpu->slices,
-			(uint32_t) Image_LinkedImageCountOf(textureToView.cpu),
-			textureToView.cpu->format,
-	};
-
-	TheForge_TextureLoadDesc loadDesc{};
-	loadDesc.pRawImageData = &rawImageData;
-	loadDesc.pTexture = &textureToView.gpu;
-	loadDesc.mCreationFlag = TheForge_TCF_OWN_MEMORY_BIT;
-	TheForge_LoadTexture(&loadDesc, false);
 
 	return true;
 }
@@ -185,8 +307,10 @@ static void Update(double deltaMS) {
 	ImguiBindings_UpdateInput(imguiBindings, deltaMS);
 	ImGui::NewFrame();
 
-
-	TextureViewer_DrawUI(textureViewer, &textureToView);
+	ShowAppMainMenuBar();
+	if(textureToView.cpu != nullptr) {
+		TextureViewer_DrawUI(textureViewer, &textureToView);
+	}
 
 	bool showDemo = true;
 	ImGui::ShowDemoWindow(&showDemo);
@@ -237,10 +361,14 @@ static void Unload() {
 	TheForge_WaitQueueIdle(graphicsQueue);
 
 	TextureViewer_Destroy(textureViewer);
-	Image_Destroy(textureToView.cpu);
-	textureToView.cpu = nullptr;
-	TheForge_RemoveTexture(renderer, textureToView.gpu);
-	textureToView.gpu = nullptr;
+	if(textureToView.cpu) {
+		Image_Destroy(textureToView.cpu);
+		textureToView.cpu = nullptr;
+	}
+	if(textureToView.gpu) {
+		TheForge_RemoveTexture(renderer, textureToView.gpu);
+		textureToView.gpu = nullptr;
+	}
 
 	ImguiBindings_Destroy(imguiBindings);
 

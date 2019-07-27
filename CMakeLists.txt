@@ -43,6 +43,7 @@ set(Deps
 		utils_misccpp
 		utils_gameappshell_interface
 		utils_gameappshell_impl_basic
+		utils_nativefiledialogs
 		)
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/out_libs)
