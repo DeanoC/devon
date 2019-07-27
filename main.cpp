@@ -143,8 +143,10 @@ static void ShowMenuFile()
 	if (ImGui::MenuItem("Open", "Ctrl+O")) {
 		char* fileName;
 		if(NativeFileDialogs_Load("ktx,dds,png,jpg,ppm", lastFolder, &fileName) ) {
-			LoadTextureToView(fileName);
+			char normalisedPath[2048];
+			Os_GetNormalisedPathFromPlatformPath(fileName, normalisedPath, 2048);
 			MEMORY_FREE(fileName);
+			LoadTextureToView(normalisedPath);
 		}
 
 	}
@@ -256,7 +258,7 @@ static bool Init() {
 	if (keyboard)
 		InputBasic_MapToKey(input, AppKey_Quit, keyboard, InputBasic_Key_Escape);
 
-	static char const DefaultFolder[] = ".";
+	static char const DefaultFolder[] = "";
 	lastFolder = (char*) MEMORY_CALLOC(strlen(DefaultFolder)+1,1);
 	memcpy(lastFolder, DefaultFolder, strlen(DefaultFolder));
 
