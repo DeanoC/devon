@@ -31,7 +31,6 @@ InputBasic_ContextHandle input;
 InputBasic_KeyboardHandle keyboard;
 InputBasic_MouseHandle mouse;
 
-TextureViewerHandle textureViewer;
 enkiTaskSchedulerHandle taskScheduler;
 
 enum AppKey {
@@ -39,7 +38,10 @@ enum AppKey {
 };
 
 ImguiBindings_ContextHandle imguiBindings;
+
+TextureViewerHandle textureViewer;
 ImguiBindings_Texture textureToView;
+char* lastFolder;
 
 static void* EnkiAlloc(void* userData, size_t size) {
 	return MEMORY_ALLOCATOR_MALLOC( (Memory_Allocator*)userData, size );
@@ -58,6 +60,16 @@ static void LoadTextureToView(char const* fileName)
 		TheForge_RemoveTexture(renderer, textureToView.gpu);
 		textureToView.gpu = nullptr;
 	}
+
+	size_t startOfFileName = 0;
+	size_t startOfFileNameExt = 0;
+
+	Os_SplitPath(fileName, &startOfFileName, &startOfFileNameExt);
+
+	MEMORY_FREE(lastFolder);
+	lastFolder = (char*) MEMORY_CALLOC(startOfFileName+1,1);
+	memcpy(lastFolder, lastFolder, startOfFileName);
+
 
 	VFile_Handle fh = VFile_FromFile(fileName, Os_FM_ReadBinary);
 	if (!fh) {
@@ -96,11 +108,6 @@ static void LoadTextureToView(char const* fileName)
 		ASSERT(Image_HasPackedMipMaps(textureToView.cpu));
 	}
 
-	size_t startOfFileName = 0;
-	size_t startOfFileNameExt = 0;
-
-	Os_SplitPath(fileName, &startOfFileName, &startOfFileNameExt);
-
 	char tmpbuffer[2048];
 	sprintf(tmpbuffer, "%s - %ix%i - %s decode", fileName + startOfFileName,
 			textureToView.cpu->width,
@@ -135,7 +142,7 @@ static void ShowMenuFile()
 {
 	if (ImGui::MenuItem("Open", "Ctrl+O")) {
 		char* fileName;
-		if(NativeFileDialogs_Load("ktx,dds,png,jpg,ppm", ".", &fileName) ) {
+		if(NativeFileDialogs_Load("ktx,dds,png,jpg,ppm", lastFolder, &fileName) ) {
 			LoadTextureToView(fileName);
 			MEMORY_FREE(fileName);
 		}
@@ -248,6 +255,10 @@ static bool Init() {
 	}
 	if (keyboard)
 		InputBasic_MapToKey(input, AppKey_Quit, keyboard, InputBasic_Key_Escape);
+
+	static char const DefaultFolder[] = ".";
+	lastFolder = (char*) MEMORY_CALLOC(strlen(DefaultFolder)+1,1);
+	memcpy(lastFolder, DefaultFolder, strlen(DefaultFolder));
 
 	return true;
 }
@@ -376,6 +387,8 @@ static void Unload() {
 
 static void Exit() {
 	LOGINFO("Exiting");
+
+	MEMORY_FREE(lastFolder);
 
 	InputBasic_MouseDestroy(mouse);
 	InputBasic_KeyboardDestroy(keyboard);
