@@ -27,6 +27,10 @@ float4 SampleTexture(float2 uv) {
     if(alphaReplicate > 0.5) {
         return float4(texSample.aaa, 1.0);
     } else {
+        // if viewing rgba multiple in alpha otherwise just show rgb
+        if(colourMask.a > 0.5f) {
+            texSample.rgb = texSample.rgb * texSample.a;
+        }
         return colourMask * texSample;
     }
 }
