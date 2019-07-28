@@ -19,7 +19,7 @@ struct FSInput {
 };
 
 Texture2D colourTexture : register(t1);
-Texture2DArray colourTextureArray : register(t1);
+Texture2DArray colourTextureArray : register(t2);
 
 SamplerState pointSampler : register(s0);
 SamplerState bilinearSampler : register(s1);
@@ -27,9 +27,10 @@ SamplerState bilinearSampler : register(s1);
 float4 SampleTexture(float2 uv) {
     float4 texSample;
 
-    if(sliceToView > 0 ){
+    if(sliceToView > 0 )
+    {
         float normalisedSliceCoord = (float)sliceToView / (float) numSlices;
-        texSample = colourTextureArray.SampleLevel(pointSampler, float3(uv, normalisedSliceCoord), forceMipLevel);
+        texSample = colourTextureArray.SampleLevel(pointSampler, float3(uv, sliceToView), forceMipLevel);
     } else {
         texSample = colourTexture.SampleLevel(pointSampler, uv, forceMipLevel);
     }

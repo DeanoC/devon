@@ -340,7 +340,10 @@ static void ImCallback(ImDrawList const *list, ImDrawCmd const *imcmd) {
 	params[0].pName = "colourTexture";
 	params[0].pTextures = &(texture->gpu);
 	params[0].count = 1;
-	TheForge_CmdBindDescriptors(ctx->cmd, ctx->descriptorBinder, ctx->rootSignature, 1, params);
+	params[1].pName = "colourTextureArray";
+	params[1].pTextures = &(texture->gpu);
+	params[1].count = 1;
+	TheForge_CmdBindDescriptors(ctx->cmd, ctx->descriptorBinder, ctx->rootSignature, 2, params);
 
 	float const clipX = imcmd->ClipRect.x * drawData->FramebufferScale.x;
 	float const clipY = imcmd->ClipRect.y * drawData->FramebufferScale.y;
