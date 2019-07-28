@@ -80,7 +80,8 @@ static void LoadTextureToView(char const* fileName)
 	textureToView.cpu = Image_Load(fh);
 	VFile_Close(fh);
 
-	bool supported = TheForge_DoesSupportShaderReadFrom(renderer, textureToView.cpu->format);
+	TinyImageFormat originalFormat = textureToView.cpu->format;
+	bool supported = TheForge_CanShaderReadFrom(renderer, textureToView.cpu->format);
 	if(!supported) {
 		// convert to R8G8B8A8 for now
 		if (!TinyImageFormat_IsCompressed(textureToView.cpu->format)) {
@@ -109,9 +110,10 @@ static void LoadTextureToView(char const* fileName)
 	}
 
 	char tmpbuffer[2048];
-	sprintf(tmpbuffer, "%s - %ix%i - %s decode", fileName + startOfFileName,
+	sprintf(tmpbuffer, "%s - %ix%i - %s - %s", fileName + startOfFileName,
 			textureToView.cpu->width,
 			textureToView.cpu->height,
+			TinyImageFormat_Name(originalFormat),
 			supported ? "GPU" : "CPU"
 			);
 
