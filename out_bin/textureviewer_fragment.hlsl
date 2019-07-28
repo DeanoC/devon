@@ -29,10 +29,9 @@ float4 SampleTexture(float2 uv) {
 
     if(sliceToView > 0 )
     {
-        float normalisedSliceCoord = (float)sliceToView / (float) numSlices;
-        texSample = colourTextureArray.SampleLevel(pointSampler, float3(uv, sliceToView), forceMipLevel);
+        texSample = colourTextureArray.SampleLevel(pointSampler, float3(uv, sliceToView), (float)forceMipLevel);
     } else {
-        texSample = colourTexture.SampleLevel(pointSampler, uv, forceMipLevel);
+        texSample = colourTexture.SampleLevel(pointSampler, uv, (float)forceMipLevel);
     }
 
     if(alphaReplicate > 0.5) {

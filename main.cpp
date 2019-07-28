@@ -236,6 +236,9 @@ static bool Init() {
 		LOGERROR("ShaderCompiler_Create failed");
 		return false;
 	}
+#ifndef NDEBUG
+	ShaderCompiler_SetOptimizationLevel(shaderCompiler, ShaderCompiler_OPT_None);
+#endif
 
 	taskScheduler = enkiNewTaskScheduler(&EnkiAlloc, &EnkiFree, &Memory_GlobalAllocator);
 
