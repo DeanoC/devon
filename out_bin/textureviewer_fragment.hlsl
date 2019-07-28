@@ -7,6 +7,9 @@ cbuffer uniformBlock : register(b0)
     float alphaReplicate;
 
     int forceMipLevel;
+
+    uint sliceToView;
+    uint numSlices;
 };
 
 struct FSInput {
@@ -16,13 +19,20 @@ struct FSInput {
 };
 
 Texture2D colourTexture : register(t1);
+Texture2DArray colourTextureArray : register(t1);
+
 SamplerState pointSampler : register(s0);
 SamplerState bilinearSampler : register(s1);
 
 float4 SampleTexture(float2 uv) {
     float4 texSample;
 
-    texSample = colourTexture.SampleLevel(pointSampler, uv, forceMipLevel);
+    if(sliceToView > 0 ){
+        float normalisedSliceCoord = (float)sliceToView / (float) numSlices;
+        texSample = colourTextureArray.SampleLevel(pointSampler, float3(uv, normalisedSliceCoord), forceMipLevel);
+    } else {
+        texSample = colourTexture.SampleLevel(pointSampler, uv, forceMipLevel);
+    }
 
     if(alphaReplicate > 0.5) {
         return float4(texSample.aaa, 1.0);

@@ -10,7 +10,8 @@ struct UniformBuffer {
 	float colourMask[4];
 	float alphaReplicate;
 	int32_t forceMipLevel;
-
+	uint32_t sliceToView;
+	uint32_t numSlices;
 };
 
 static const uint64_t UNIFORM_BUFFER_SIZE_PER_FRAME = 256;
@@ -397,7 +398,9 @@ void TextureViewer_DrawUI(TextureViewerHandle handle, ImguiBindings_Texture *tex
 		rb.y = window->DC.CursorPos.y + 32.0f;
 	ImRect const bb2(window->DC.CursorPos, rb);
 	ImGui::ItemSize(bb2);
+
 	int forceMipLevel = 0;
+	int sliceToView = 0;
 
 	if(Image_LinkedImageCountOf(texture->cpu) > 1) {
 		forceMipLevel = (int) ctx->uniforms.forceMipLevel;
@@ -406,6 +409,14 @@ void TextureViewer_DrawUI(TextureViewerHandle handle, ImguiBindings_Texture *tex
 											&forceMipLevel, 0, (int) Image_LinkedImageCountOf(texture->cpu)-1);
 	}
 	ctx->uniforms.forceMipLevel = (int32_t)forceMipLevel;
+	if(texture->cpu->slices > 1) {
+		sliceToView = (int) ctx->uniforms.sliceToView;
+		ImGui::SameLine();
+		ImGui::VSliderInt("Slice", ImVec2(20.0f, 100.0f),
+											&sliceToView, 0, (int) texture->cpu->slices - 1);
+	}
+	ctx->uniforms.numSlices = texture->cpu->slices;
+	ctx->uniforms.sliceToView = (uint32_t)sliceToView;
 
 	ImGui::End();
 }
