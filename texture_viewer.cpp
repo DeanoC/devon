@@ -271,7 +271,7 @@ TextureViewerHandle TextureViewer_Create(TheForge_RendererHandle renderer,
 	ctx->colourChannelEnable[0] = true;
 	ctx->colourChannelEnable[1] = true;
 	ctx->colourChannelEnable[2] = true;
-	ctx->colourChannelEnable[3] = true;
+	ctx->colourChannelEnable[3] = false;
 	ctx->zoom = 1.0f;
 
 	static char const DefaultName[] = "Texture Viewer";
