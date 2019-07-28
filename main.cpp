@@ -79,6 +79,10 @@ static void LoadTextureToView(char const* fileName)
 
 	textureToView.cpu = Image_Load(fh);
 	VFile_Close(fh);
+	if(!textureToView.cpu) {
+		LOGERRORF("Image_Load failed for %s", fileName);
+		return;
+	}
 
 	TinyImageFormat originalFormat = textureToView.cpu->format;
 	bool supported = TheForge_CanShaderReadFrom(renderer, textureToView.cpu->format);
