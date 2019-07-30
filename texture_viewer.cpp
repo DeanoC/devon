@@ -49,7 +49,18 @@ struct TextureViewer {
 
 namespace {
 
-static uint32_t DummyData[] = { 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+static uint32_t const DummyData[] = {
+																0x00FFFF00, 0x00FFFF00, 0x00FFFF00, 0x00FFFF00,
+																0x00000000, 0x00000000, 0x00000000, 0x00000000,
+																0x00800000, 0x00800000, 0x00800000, 0x00800000,
+																0x00008000, 0x00008000, 0x00008000, 0x00008000,
+
+																0x80FFFF80, 0x80FFFF80, 0x80FFFF80, 0x80FFFF80,
+																0x80000080, 0x80000080, 0x80000080, 0x80000080,
+																0x80800080, 0x80800080, 0x80800080, 0x80800080,
+																0x80008080, 0x80008080, 0x80008080, 0x80008080,
+
+																0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
 																0xFF0000FF, 0xFF0000FF, 0xFF0000FF, 0xFF0000FF,
 																0xFF8000FF, 0xFF8000FF, 0xFF8000FF, 0xFF8000FF,
 																0xFF0080FF, 0xFF0080FF, 0xFF0080FF, 0xFF0080FF };
@@ -63,12 +74,12 @@ static void CreateDummyTextures(TextureViewer *ctx)
 	};
 	TheForge_RawImageData const raw2DArrayImageData{
 			(unsigned char *) DummyData,
-			TheForge_IF_NONE,4,4,1,4,1,
+			TheForge_IF_NONE,4,4,1,3,1,
 			TinyImageFormat_R8G8B8A8_UNORM
 	};
 	TheForge_RawImageData const raw3DImageData{
 			(unsigned char *) DummyData,
-			TheForge_IF_NONE,4,4,4,1,1,
+			TheForge_IF_NONE,4,4,3,1,1,
 			TinyImageFormat_R8G8B8A8_UNORM
 	};
 
