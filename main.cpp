@@ -239,6 +239,10 @@ static bool Init() {
 #ifndef NDEBUG
 	ShaderCompiler_SetOptimizationLevel(shaderCompiler, ShaderCompiler_OPT_None);
 #endif
+	// change from platform default to vulkan if using the vulkan backend
+	if(TheForge_GetRendererApi(renderer) == TheForge_API_VULKAN) {
+		ShaderCompiler_SetOutput(shaderCompiler, ShaderCompiler_OT_SPIRV, 13);
+	}
 
 	taskScheduler = enkiNewTaskScheduler(&EnkiAlloc, &EnkiFree, &Memory_GlobalAllocator);
 

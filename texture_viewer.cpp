@@ -33,6 +33,10 @@ struct TextureViewer {
 	TheForge_DescriptorBinderHandle descriptorBinder;
 	TheForge_BufferHandle uniformBuffer;
 
+	TheForge_TextureHandle dummy2DTexture;
+	TheForge_TextureHandle dummy2DArrayTexture;
+	TheForge_TextureHandle dummy3DTexture;
+
 	UniformBuffer uniforms;
 	bool colourChannelEnable[4];
 	float zoom;
@@ -44,6 +48,45 @@ struct TextureViewer {
 };
 
 namespace {
+
+static uint32_t DummyData[] = { 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+																0xFF0000FF, 0xFF0000FF, 0xFF0000FF, 0xFF0000FF,
+																0xFF8000FF, 0xFF8000FF, 0xFF8000FF, 0xFF8000FF,
+																0xFF0080FF, 0xFF0080FF, 0xFF0080FF, 0xFF0080FF };
+
+static void CreateDummyTextures(TextureViewer *ctx)
+{
+	TheForge_RawImageData const raw2DImageData{
+			(unsigned char *) DummyData,
+			TheForge_IF_NONE,4,4,1,1,1,
+			TinyImageFormat_R8G8B8A8_UNORM
+	};
+	TheForge_RawImageData const raw2DArrayImageData{
+			(unsigned char *) DummyData,
+			TheForge_IF_NONE,4,4,1,4,1,
+			TinyImageFormat_R8G8B8A8_UNORM
+	};
+	TheForge_RawImageData const raw3DImageData{
+			(unsigned char *) DummyData,
+			TheForge_IF_NONE,4,4,4,1,1,
+			TinyImageFormat_R8G8B8A8_UNORM
+	};
+
+	TheForge_TextureLoadDesc loadDesc{};
+	loadDesc.pRawImageData = &raw2DImageData;
+	loadDesc.pTexture = &ctx->dummy2DTexture;
+	loadDesc.mCreationFlag = TheForge_TCF_OWN_MEMORY_BIT;
+	TheForge_LoadTexture(&loadDesc, false);
+	loadDesc.pRawImageData = &raw2DArrayImageData;
+	loadDesc.pTexture = &ctx->dummy2DArrayTexture;
+	loadDesc.mCreationFlag = TheForge_TCF_OWN_MEMORY_BIT;
+	TheForge_LoadTexture(&loadDesc, false);
+	loadDesc.pRawImageData = &raw3DImageData;
+	loadDesc.pTexture = &ctx->dummy3DTexture;
+	loadDesc.mCreationFlag = TheForge_TCF_OWN_MEMORY_BIT;
+	TheForge_LoadTexture(&loadDesc, false);
+
+}
 
 static bool CreateShaders(TextureViewer *ctx) {
 
@@ -147,6 +190,9 @@ TextureViewerHandle TextureViewer_Create(TheForge_RendererHandle renderer,
 			TheForge_AM_CLAMP_TO_EDGE,
 			TheForge_AM_CLAMP_TO_EDGE,
 			TheForge_AM_CLAMP_TO_EDGE,
+			0.0f,
+			1.0f,
+			TheForge_CMP_ALWAYS
 	};
 
 	static TheForge_SamplerDesc const bilinearSamplerDesc{
@@ -156,6 +202,9 @@ TextureViewerHandle TextureViewer_Create(TheForge_RendererHandle renderer,
 			TheForge_AM_CLAMP_TO_EDGE,
 			TheForge_AM_CLAMP_TO_EDGE,
 			TheForge_AM_CLAMP_TO_EDGE,
+			0.0f,
+			1.0f,
+			TheForge_CMP_ALWAYS
 	};
 
 	static TheForge_VertexLayout const vertexLayout{
@@ -268,6 +317,8 @@ TextureViewerHandle TextureViewer_Create(TheForge_RendererHandle renderer,
 	if (!ctx->uniformBuffer)
 		return nullptr;
 
+	CreateDummyTextures(ctx);
+
 	// defaults
 	ctx->colourChannelEnable[0] = true;
 	ctx->colourChannelEnable[1] = true;
@@ -288,6 +339,13 @@ void TextureViewer_Destroy(TextureViewerHandle handle) {
 		return;
 
 	MEMORY_FREE(ctx->windowName);
+
+	if (ctx->dummy3DTexture)
+		TheForge_RemoveTexture(ctx->renderer, ctx->dummy3DTexture);
+	if (ctx->dummy2DArrayTexture)
+		TheForge_RemoveTexture(ctx->renderer, ctx->dummy2DArrayTexture);
+	if (ctx->dummy2DTexture)
+		TheForge_RemoveTexture(ctx->renderer, ctx->dummy2DTexture);
 
 	if (ctx->uniformBuffer)
 		TheForge_RemoveBuffer(ctx->renderer, ctx->uniformBuffer);
@@ -329,21 +387,28 @@ static void ImCallback(ImDrawList const *list, ImDrawCmd const *imcmd) {
 	TheForge_CmdBindPipeline(ctx->cmd, ctx->pipeline);
 
 	uint64_t const baseUniformOffset = ctx->currentFrame * UNIFORM_BUFFER_SIZE_PER_FRAME;
-	TheForge_DescriptorData paramsx[1]{};
-	paramsx[0].pName = "uniformBlock";
-	paramsx[0].pBuffers = &ctx->uniformBuffer;
-	paramsx[0].pOffsets = &baseUniformOffset;
-	paramsx[0].count = 1;
-	TheForge_CmdBindDescriptors(ctx->cmd, ctx->descriptorBinder, ctx->rootSignature, 1, paramsx);
 
-	TheForge_DescriptorData params[2]{};
-	params[0].pName = "colourTexture";
-	params[0].pTextures = &(texture->gpu);
+	TheForge_DescriptorData params[3]{};
+	params[0].pName = "uniformBlock";
+	params[0].pBuffers = &ctx->uniformBuffer;
+	params[0].pOffsets = &baseUniformOffset;
 	params[0].count = 1;
-	params[1].pName = "colourTextureArray";
-	params[1].pTextures = &(texture->gpu);
-	params[1].count = 1;
-	TheForge_CmdBindDescriptors(ctx->cmd, ctx->descriptorBinder, ctx->rootSignature, 2, params);
+	if(Image_IsArray(texture->cpu)) {
+		params[1].pName = "colourTexture";
+		params[1].pTextures = &ctx->dummy2DTexture;
+		params[1].count = 1;
+		params[2].pName = "colourTextureArray";
+		params[2].pTextures = &(texture->gpu);
+		params[2].count = 1;
+	} else {
+		params[1].pName = "colourTexture";
+		params[1].pTextures = &(texture->gpu);
+		params[1].count = 1;
+		params[2].pName = "colourTextureArray";
+		params[2].pTextures = &ctx->dummy2DArrayTexture;
+		params[2].count = 1;
+	}
+	TheForge_CmdBindDescriptors(ctx->cmd, ctx->descriptorBinder, ctx->rootSignature, 3, params);
 
 	float const clipX = imcmd->ClipRect.x * drawData->FramebufferScale.x;
 	float const clipY = imcmd->ClipRect.y * drawData->FramebufferScale.y;
