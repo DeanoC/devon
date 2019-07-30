@@ -191,8 +191,8 @@ TextureViewerHandle TextureViewer_Create(TheForge_RendererHandle renderer,
 			TheForge_AM_CLAMP_TO_EDGE,
 			TheForge_AM_CLAMP_TO_EDGE,
 			0.0f,
-			1.0f,
-			TheForge_CMP_ALWAYS
+			0.0f,
+			TheForge_CMP_NEVER
 	};
 
 	static TheForge_SamplerDesc const bilinearSamplerDesc{
@@ -203,8 +203,8 @@ TextureViewerHandle TextureViewer_Create(TheForge_RendererHandle renderer,
 			TheForge_AM_CLAMP_TO_EDGE,
 			TheForge_AM_CLAMP_TO_EDGE,
 			0.0f,
-			1.0f,
-			TheForge_CMP_ALWAYS
+			0.0f,
+			TheForge_CMP_NEVER
 	};
 
 	static TheForge_VertexLayout const vertexLayout{

@@ -18,8 +18,8 @@ struct FSInput {
     float4 Colour   : COLOR;
 };
 
-Texture2D colourTexture : register(t1, space1);
-Texture2DArray colourTextureArray : register(t2, space1);
+Texture2D colourTexture : register(t0, space1);
+Texture2DArray colourTextureArray : register(t1, space1);
 
 SamplerState pointSampler : register(s0, space2);
 SamplerState bilinearSampler : register(s1, space2);
