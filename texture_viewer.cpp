@@ -86,15 +86,15 @@ static void CreateDummyTextures(TextureViewer *ctx)
 	TheForge_TextureLoadDesc loadDesc{};
 	loadDesc.pRawImageData = &raw2DImageData;
 	loadDesc.pTexture = &ctx->dummy2DTexture;
-	loadDesc.mCreationFlag = TheForge_TCF_OWN_MEMORY_BIT;
+	loadDesc.mCreationFlag = TheForge_TCF_NONE;
 	TheForge_LoadTexture(&loadDesc, false);
 	loadDesc.pRawImageData = &raw2DArrayImageData;
 	loadDesc.pTexture = &ctx->dummy2DArrayTexture;
-	loadDesc.mCreationFlag = TheForge_TCF_OWN_MEMORY_BIT;
+	loadDesc.mCreationFlag = TheForge_TCF_NONE;
 	TheForge_LoadTexture(&loadDesc, false);
 	loadDesc.pRawImageData = &raw3DImageData;
 	loadDesc.pTexture = &ctx->dummy3DTexture;
-	loadDesc.mCreationFlag = TheForge_TCF_OWN_MEMORY_BIT;
+	loadDesc.mCreationFlag = TheForge_TCF_NONE;
 	TheForge_LoadTexture(&loadDesc, false);
 
 }
@@ -253,7 +253,7 @@ TextureViewerHandle TextureViewer_Create(TheForge_RendererHandle renderer,
 	static TheForge_BufferDesc const ubDesc{
 			UNIFORM_BUFFER_SIZE_PER_FRAME * ctx->maxFrames,
 			TheForge_RMU_CPU_TO_GPU,
-			(TheForge_BufferCreationFlags) (TheForge_BCF_PERSISTENT_MAP_BIT | TheForge_BCF_OWN_MEMORY_BIT),
+			(TheForge_BufferCreationFlags) (TheForge_BCF_PERSISTENT_MAP_BIT),
 			TheForge_RS_UNDEFINED,
 			TheForge_IT_UINT16,
 			0,
@@ -285,7 +285,6 @@ TextureViewerHandle TextureViewer_Create(TheForge_RendererHandle renderer,
 	TheForge_ShaderHandle shaders[]{ctx->shader};
 	TheForge_SamplerHandle samplers[]{ctx->pointSampler, ctx->bilinearSampler};
 	char const *staticSamplerNames[]{"pointSampler", "bilinearSampler"};
-
 	TheForge_RootSignatureDesc rootSignatureDesc{};
 	rootSignatureDesc.shaderCount = 1;
 	rootSignatureDesc.pShaders = shaders;

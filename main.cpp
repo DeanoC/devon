@@ -275,17 +275,12 @@ static bool Init() {
 	lastFolder = (char*) MEMORY_CALLOC(strlen(DefaultFolder)+1,1);
 	memcpy(lastFolder, DefaultFolder, strlen(DefaultFolder));
 
-	return true;
-}
-
-static bool Load() {
-    
 	imguiBindings = ImguiBindings_Create(renderer, shaderCompiler, input,
 																			 20,
 																			 FRAMES_AHEAD,
 																			 Display_GetBackBufferFormat(display),
 																			 Display_GetDepthBufferFormat(display),
-                                         Display_IsBackBufferSrgb(display),
+																			 Display_IsBackBufferSrgb(display),
 																			 TheForge_SC_1,
 																			 0);
 	if (!imguiBindings) {
@@ -303,11 +298,15 @@ static bool Load() {
 																			 Display_IsBackBufferSrgb(display),
 																			 TheForge_SC_1,
 																			 0);
-    if(!textureViewer) {
-			LOGERROR("TextureViewer_Create failed");
-    	return false;
-    }
+	if(!textureViewer) {
+		LOGERROR("TextureViewer_Create failed");
+		return false;
+	}
 
+	return true;
+}
+
+static bool Load() {
 
 	return true;
 }
@@ -385,8 +384,15 @@ static void Unload() {
 	LOGINFO("Unloading");
 
 	TheForge_WaitQueueIdle(graphicsQueue);
+}
 
-	TextureViewer_Destroy(textureViewer);
+static void Exit() {
+	LOGINFO("Exiting");
+
+	MEMORY_FREE(lastFolder);
+
+
+	TextureViewer_Destroy(textureViewer); textureViewer = nullptr;
 	if(textureToView.cpu) {
 		Image_Destroy(textureToView.cpu);
 		textureToView.cpu = nullptr;
@@ -398,16 +404,13 @@ static void Unload() {
 
 	ImguiBindings_Destroy(imguiBindings);
 
-}
-
-static void Exit() {
-	LOGINFO("Exiting");
-
-	MEMORY_FREE(lastFolder);
+	TextureViewer_Destroy(textureViewer); textureViewer = nullptr;
 
 	InputBasic_MouseDestroy(mouse);
 	InputBasic_KeyboardDestroy(keyboard);
 	InputBasic_Destroy(input);
+
+	TheForge_RemoveResourceLoaderInterface(renderer);
 
 	Display_Destroy(display);
 
