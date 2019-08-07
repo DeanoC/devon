@@ -20,7 +20,6 @@
     <mapping directory="$PROJECT_DIR$/fetchdeps/gfx_glslang-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/fetchdeps/gfx_image_impl_basic-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/fetchdeps/gfx_image_interface-src" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/fetchdeps/gfx_imageformat-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/fetchdeps/gfx_imageio-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/fetchdeps/gfx_imgui-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/fetchdeps/gfx_imgui_al2o3_theforge_bindings-src" vcs="Git" />
