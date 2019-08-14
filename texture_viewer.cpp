@@ -10,6 +10,7 @@ struct UniformBuffer {
 	float colourMask[4];
 	float alphaReplicate;
 	int32_t forceMipLevel;
+	int32_t signedRGB;
 	uint32_t sliceToView;
 	uint32_t numSlices;
 };
@@ -479,7 +480,7 @@ void TextureViewer_DrawUI(TextureViewerHandle handle, ImguiBindings_Texture *tex
 
 	int forceMipLevel = 0;
 	int sliceToView = 0;
-
+	bool signedRGB = false;
 	if(Image_LinkedImageCountOf(texture->cpu) > 1) {
 		forceMipLevel = (int) ctx->uniforms.forceMipLevel;
 		ImGui::SameLine();
@@ -493,8 +494,15 @@ void TextureViewer_DrawUI(TextureViewerHandle handle, ImguiBindings_Texture *tex
 		ImGui::VSliderInt("Slice", ImVec2(20.0f, 100.0f),
 											&sliceToView, 0, (int) texture->cpu->slices - 1);
 	}
+	if(TinyImageFormat_IsSigned(texture->cpu->format)) {
+		signedRGB = (bool) ctx->uniforms.signedRGB;
+		ImGui::SameLine();
+		ImGui::Checkbox("Signed decode", &signedRGB);
+	}
+
 	ctx->uniforms.numSlices = texture->cpu->slices;
 	ctx->uniforms.sliceToView = (uint32_t)sliceToView;
+	ctx->uniforms.signedRGB = signedRGB;
 
 	ImGui::End();
 }

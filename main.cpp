@@ -88,7 +88,7 @@ static void LoadTextureToView(char const* fileName)
 	bool supported = TheForge_CanShaderReadFrom(renderer, textureToView.cpu->format);
 
 	// force CPU for testing if we can
-	if(!TinyImageFormat_IsCompressed(originalFormat)) supported = false;
+//	if(!TinyImageFormat_IsCompressed(originalFormat)) supported = false;
 
 	if(!supported) {
 		// convert to R8G8B8A8 for now

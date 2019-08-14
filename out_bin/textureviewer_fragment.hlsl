@@ -7,6 +7,7 @@ cbuffer uniformBlock : register(b0, space0)
     float alphaReplicate;
 
     int forceMipLevel;
+    int signedRGB;
 
     uint sliceToView;
     uint numSlices;
@@ -32,6 +33,10 @@ float4 SampleTexture(float2 uv) {
         texSample = colourTextureArray.SampleLevel(pointSampler, float3(uv, sliceToView), (float)forceMipLevel);
     } else {
         texSample = colourTexture.SampleLevel(pointSampler, uv, (float)forceMipLevel);
+    }
+
+    if(signedRGB) {
+        texSample = texSample * 0.5f + 0.5f;
     }
 
     if(alphaReplicate > 0.5) {
