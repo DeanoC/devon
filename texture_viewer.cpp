@@ -481,7 +481,7 @@ void TextureViewer_DrawUI(TextureViewerHandle handle, ImguiBindings_Texture *tex
 	int forceMipLevel = 0;
 	int sliceToView = 0;
 	bool signedRGB = false;
-	if(Image_LinkedImageCountOf(texture->cpu) > 1) {
+	if(Image_MipMapCountOf(texture->cpu) > 1) {
 		forceMipLevel = (int) ctx->uniforms.forceMipLevel;
 		ImGui::SameLine();
 		ImGui::VSliderInt("Mipmap Level", ImVec2(20.0f, 100.0f),
