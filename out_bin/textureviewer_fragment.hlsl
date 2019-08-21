@@ -36,7 +36,7 @@ float4 SampleTexture(float2 uv) {
     }
 
     if(signedRGB) {
-        texSample = texSample * 0.5f + 0.5f;
+        texSample = (texSample + 1.0f) * 0.5f;
     }
 
     if(alphaReplicate > 0.5) {

@@ -73,14 +73,14 @@ static void LoadTextureToView(char const* fileName)
 
 	VFile_Handle fh = VFile_FromFile(fileName, Os_FM_ReadBinary);
 	if (!fh) {
-		LOGERRORF("Load From File failed for %s", fileName);
+		LOGINFOF("Load From File failed for %s", fileName);
 		return;
 	}
 
 	textureToView.cpu = Image_Load(fh);
 	VFile_Close(fh);
 	if(!textureToView.cpu) {
-		LOGERRORF("Image_Load failed for %s", fileName);
+		LOGINFOF("Image_Load failed for %s", fileName);
 		return;
 	}
 
@@ -93,7 +93,12 @@ static void LoadTextureToView(char const* fileName)
 	if(!supported) {
 		// convert to R8G8B8A8 for now
 		if (!TinyImageFormat_IsCompressed(textureToView.cpu->format)) {
-			Image_ImageHeader const* converted = Image_FastConvert(textureToView.cpu, TinyImageFormat_R8G8B8A8_UNORM, true);
+			Image_ImageHeader const* converted = textureToView.cpu;
+			if(TinyImageFormat_IsSigned(textureToView.cpu->format)) {
+				converted = Image_FastConvert(textureToView.cpu, TinyImageFormat_R8G8B8A8_SNORM, true);
+			} else {
+				converted = Image_FastConvert(textureToView.cpu, TinyImageFormat_R8G8B8A8_UNORM, true);
+			}
 			if(converted != textureToView.cpu) {
 				Image_Destroy(textureToView.cpu);
 				textureToView.cpu = converted;
