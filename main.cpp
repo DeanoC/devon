@@ -1,4 +1,4 @@
-#include <cstdio>
+#include <cstdio> // for sprintf
 #include "al2o3_platform/platform.h"
 #include "al2o3_memory/memory.h"
 #include "al2o3_enki/TaskScheduler_c.h"
@@ -113,7 +113,7 @@ static void LoadTextureToView(char const* fileName)
 		}
 	}
 
-	if(Image_LinkedImageCountOf(textureToView.cpu) > 1) {
+	if(Image_MipMapCountOf(textureToView.cpu) > 1) {
 		Image_ImageHeader const * packed = Image_PackMipmaps(textureToView.cpu);
 		if(textureToView.cpu != packed) {
 			Image_Destroy(textureToView.cpu);
