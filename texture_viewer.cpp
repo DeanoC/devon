@@ -70,18 +70,18 @@ static void CreateDummyTextures(TextureViewer *ctx)
 {
 	TheForge_RawImageData const raw2DImageData{
 			(unsigned char *) DummyData,
-			TheForge_IF_NONE,4,4,1,1,1,
-			TinyImageFormat_R8G8B8A8_UNORM
+			TinyImageFormat_R8G8B8A8_UNORM,4,4,1,1,1,
+			true
 	};
 	TheForge_RawImageData const raw2DArrayImageData{
 			(unsigned char *) DummyData,
-			TheForge_IF_NONE,4,4,1,3,1,
-			TinyImageFormat_R8G8B8A8_UNORM
+			TinyImageFormat_R8G8B8A8_UNORM,4,4,1,3,1,
+			true
 	};
 	TheForge_RawImageData const raw3DImageData{
 			(unsigned char *) DummyData,
-			TheForge_IF_NONE,4,4,3,1,1,
-			TinyImageFormat_R8G8B8A8_UNORM
+			TinyImageFormat_R8G8B8A8_UNORM,4,4,3,1,1,
+			true
 	};
 
 	TheForge_TextureLoadDesc loadDesc{};
@@ -176,9 +176,8 @@ TextureViewerHandle TextureViewer_Create(TheForge_RendererHandle renderer,
 																				 ShaderCompiler_ContextHandle shaderCompiler,
 																				 ImguiBindings_ContextHandle imgui,
 																				 uint32_t maxFrames,
-																				 TheForge_ImageFormat renderTargetFormat,
-																				 TheForge_ImageFormat depthStencilFormat,
-																				 bool sRGB,
+																				 TinyImageFormat renderTargetFormat,
+																				 TinyImageFormat depthStencilFormat,
 																				 TheForge_SampleCount sampleCount,
 																				 uint32_t sampleQuality) {
 	auto ctx = (TextureViewer *) MEMORY_CALLOC(1, sizeof(TextureViewer));
@@ -222,9 +221,9 @@ TextureViewerHandle TextureViewer_Create(TheForge_RendererHandle renderer,
 	static TheForge_VertexLayout const vertexLayout{
 			3,
 			{
-					{TheForge_SS_POSITION, 8, "POSITION", TheForge_IF_RG32F, 0, 0, 0},
-					{TheForge_SS_TEXCOORD0, 9, "TEXCOORD", TheForge_IF_RG32F, 0, 1, sizeof(float) * 2},
-					{TheForge_SS_COLOR, 5, "COLOR", TheForge_IF_RGBA8, 0, 2, sizeof(float) * 4}
+					{TheForge_SS_POSITION, 8, "POSITION", TinyImageFormat_R32G32_SFLOAT, 0, 0, 0},
+					{TheForge_SS_TEXCOORD0, 9, "TEXCOORD", TinyImageFormat_R32G32_SFLOAT, 0, 1, sizeof(float) * 2},
+					{TheForge_SS_COLOR, 5, "COLOR", TinyImageFormat_R8G8B8A8_UNORM, 0, 2, sizeof(float) * 4}
 			}
 	};
 	static TheForge_BlendStateDesc const blendDesc{
@@ -262,7 +261,7 @@ TextureViewerHandle TextureViewer_Create(TheForge_RendererHandle renderer,
 			0,
 			0,
 			nullptr,
-			TheForge_IF_NONE,
+			TinyImageFormat_UNDEFINED,
 			TheForge_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
 	};
 
@@ -308,7 +307,6 @@ TextureViewerHandle TextureViewer_Create(TheForge_RendererHandle renderer,
 	gfxPipeDesc.renderTargetCount = 1;
 	gfxPipeDesc.pColorFormats = &renderTargetFormat;
 	gfxPipeDesc.depthStencilFormat = depthStencilFormat;
-	gfxPipeDesc.pSrgbValues = &sRGB;
 	gfxPipeDesc.sampleCount = sampleCount;
 	gfxPipeDesc.sampleQuality = sampleQuality;
 	gfxPipeDesc.primitiveTopo = TheForge_PT_TRI_LIST;

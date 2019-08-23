@@ -135,13 +135,13 @@ static void LoadTextureToView(char const* fileName)
 	// use extended format
 	TheForge_RawImageData rawImageData{
 			(unsigned char *) Image_RawDataPtr(textureToView.cpu),
-			TheForge_IF_NONE,
+			textureToView.cpu->format,
 			textureToView.cpu->width,
 			textureToView.cpu->height,
 			textureToView.cpu->depth,
 			textureToView.cpu->slices,
 			(uint32_t) Image_LinkedImageCountOf(textureToView.cpu),
-			textureToView.cpu->format,
+			true
 	};
 
 	TheForge_TextureLoadDesc loadDesc{};
@@ -289,7 +289,6 @@ static bool Init() {
 																			 FRAMES_AHEAD,
 																			 Display_GetBackBufferFormat(display),
 																			 Display_GetDepthBufferFormat(display),
-																			 Display_IsBackBufferSrgb(display),
 																			 TheForge_SC_1,
 																			 0);
 	if (!imguiBindings) {
@@ -304,7 +303,6 @@ static bool Init() {
 																			 FRAMES_AHEAD,
 																			 Display_GetBackBufferFormat(display),
 																			 Display_GetDepthBufferFormat(display),
-																			 Display_IsBackBufferSrgb(display),
 																			 TheForge_SC_1,
 																			 0);
 	if(!textureViewer) {

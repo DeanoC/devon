@@ -18,8 +18,8 @@ extern TheForge_CmdHandle Display_NewFrame(Display_ContextHandle handle,
 																					 TheForge_RenderTargetHandle *depthTarget);
 extern void Display_Present(Display_ContextHandle handle);
 
-extern TheForge_ImageFormat Display_GetBackBufferFormat(Display_ContextHandle handle);
-extern TheForge_ImageFormat Display_GetDepthBufferFormat(Display_ContextHandle handle);
+extern TinyImageFormat Display_GetBackBufferFormat(Display_ContextHandle handle);
+extern TinyImageFormat Display_GetDepthBufferFormat(Display_ContextHandle handle);
 extern bool Display_IsBackBufferSrgb(Display_ContextHandle handle);
 
 #endif //DEVON_DEVON_DISPLAY_H

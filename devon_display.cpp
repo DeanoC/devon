@@ -2,6 +2,7 @@
 #include "al2o3_memory/memory.h"
 #include "gfx_theforge/theforge.h"
 #include "utils_gameappshell/gameappshell.h"
+#include "tiny_imageformat/tinyimageformat_query.h"
 
 typedef struct Display_Context {
 	TheForge_RendererHandle renderer;
@@ -70,7 +71,7 @@ Display_ContextHandle Display_Create(TheForge_RendererHandle renderer,
 	depthRTDesc.clearValue.depth = 1.0f;
 	depthRTDesc.clearValue.stencil = 0;
 	depthRTDesc.depth = 1;
-	depthRTDesc.format = TheForge_IF_D32F;
+	depthRTDesc.format = TinyImageFormat_D32_SFLOAT;
 	depthRTDesc.width = (uint32_t)(gasWindowDesc.width  * gasWindowDesc.dpiBackingScale[0]);
 	depthRTDesc.height = (uint32_t)(gasWindowDesc.height * gasWindowDesc.dpiBackingScale[1]);
 	depthRTDesc.mipLevels = 1;
@@ -192,9 +193,9 @@ void Display_Present(Display_ContextHandle handle) {
 
 }
 
-TheForge_ImageFormat Display_GetBackBufferFormat(Display_ContextHandle handle) {
+TinyImageFormat Display_GetBackBufferFormat(Display_ContextHandle handle) {
 	Display_Context *ctx = (Display_Context *) handle;
-	if(!ctx) return TheForge_IF_NONE;
+	if(!ctx) return TinyImageFormat_UNDEFINED;
 
 	TheForge_RenderTargetHandle renderTarget = TheForge_SwapChainGetRenderTarget(ctx->swapChain, ctx->frameIndex);
 	TheForge_RenderTargetDesc const* desc = TheForge_RenderTargetGetDesc(renderTarget);
@@ -206,12 +207,12 @@ bool Display_IsBackBufferSrgb(Display_ContextHandle handle) {
 
 	TheForge_RenderTargetHandle renderTarget = TheForge_SwapChainGetRenderTarget(ctx->swapChain, ctx->frameIndex);
 	TheForge_RenderTargetDesc const* desc = TheForge_RenderTargetGetDesc(renderTarget);
-	return desc->sRGB;
+	return TinyImageFormat_IsSRGB(desc->format);
 }
 
-TheForge_ImageFormat Display_GetDepthBufferFormat(Display_ContextHandle handle) {
+TinyImageFormat Display_GetDepthBufferFormat(Display_ContextHandle handle) {
 	Display_Context *ctx = (Display_Context *) handle;
-	if(!ctx) return TheForge_IF_NONE;
+	if(!ctx) return TinyImageFormat_UNDEFINED;
 
 	TheForge_RenderTargetDesc const* desc = TheForge_RenderTargetGetDesc(ctx->depthBuffer);
 	return desc->format;
