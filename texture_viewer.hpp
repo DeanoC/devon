@@ -1,6 +1,6 @@
 #pragma once
-#ifndef DEVON__TEXTURE_VIEWER_HPP
-#define DEVON__TEXTURE_VIEWER_HPP
+#ifndef DEVON_TEXTURE_VIEWER_HPP
+#define DEVON_TEXTURE_VIEWER_HPP
 
 #include "gfx_theforge/theforge.h"
 #include "gfx_imgui_al2o3_theforge_bindings/bindings.h"
