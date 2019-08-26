@@ -61,7 +61,6 @@ Display_ContextHandle Display_Create(TheForge_RendererHandle renderer,
 	swapChainDesc.sampleCount = TheForge_SC_1;
 	swapChainDesc.sampleQuality = 0;
 	swapChainDesc.colorFormat = TheForge_GetRecommendedSwapchainFormat(true);
-	swapChainDesc.srgb = true;
 	swapChainDesc.enableVsync = false;
 	TheForge_AddSwapChain(renderer, &swapChainDesc, &ctx->swapChain);
 
