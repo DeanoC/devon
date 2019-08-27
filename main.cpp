@@ -158,10 +158,12 @@ static void ShowMenuFile()
 	if (ImGui::MenuItem("Open", "Ctrl+O")) {
 		char* fileName;
 		if(NativeFileDialogs_Load("ktx,dds,png,jpg,ppm", lastFolder, &fileName) ) {
-			char normalisedPath[2048];
-			Os_GetNormalisedPathFromPlatformPath(fileName, normalisedPath, 2048);
-			MEMORY_FREE(fileName);
-			LoadTextureToView(normalisedPath);
+			if(fileName != nullptr) {
+				char normalisedPath[2048];
+				Os_GetNormalisedPathFromPlatformPath(fileName, normalisedPath, 2048);
+				MEMORY_FREE(fileName);
+				LoadTextureToView(normalisedPath);
+			}
 		}
 
 	}
