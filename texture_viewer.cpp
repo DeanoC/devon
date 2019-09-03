@@ -553,3 +553,12 @@ void TextureViewer_SetWindowName(TextureViewerHandle handle, char const* windowN
 	memcpy(ctx->windowName, windowName, strlen(windowName));
 
 }
+
+void TextureViewer_SetZoom(TextureViewerHandle handle, float zoom ) {
+
+	auto ctx = (TextureViewer *) handle;
+	if (!ctx)
+		return;
+
+	ctx->zoom = zoom;
+}

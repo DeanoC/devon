@@ -21,5 +21,6 @@ void TextureViewer_DrawUI(TextureViewerHandle handle, ImguiBindings_Texture* tex
 // must be called before Imguibinding render. Sets up things for the callbacks from imgui
 void TextureViewer_RenderSetup(TextureViewerHandle handle, TheForge_CmdHandle cmd);
 void TextureViewer_SetWindowName(TextureViewerHandle handle, char const* windowName );
+void TextureViewer_SetZoom(TextureViewerHandle handle, float zoom );
 
 #endif //DEVON__TEXTURE_VIEWER_HPP

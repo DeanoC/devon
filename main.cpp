@@ -131,6 +131,7 @@ static void LoadTextureToView(char const* fileName)
 			);
 
 	TextureViewer_SetWindowName(textureViewer, tmpbuffer);
+	TextureViewer_SetZoom(textureViewer, 768.0f / textureToView.cpu->width);
 
 	// use extended format
 	TheForge_RawImageData rawImageData{
@@ -157,7 +158,7 @@ static void ShowMenuFile()
 {
 	if (ImGui::MenuItem("Open", "Ctrl+O")) {
 		char* fileName;
-		if(NativeFileDialogs_Load("ktx,dds,png,jpg,ppm", lastFolder, &fileName) ) {
+		if(NativeFileDialogs_Load("ktx,dds,exr,hdr,jpg,jpeg,png,tga,bmp,psd,gif,pic,pnm,ppm", lastFolder, &fileName) ) {
 			if(fileName != nullptr) {
 				char normalisedPath[2048];
 				Os_GetNormalisedPathFromPlatformPath(fileName, normalisedPath, 2048);
@@ -346,8 +347,8 @@ static void Update(double deltaMS) {
 		TextureViewer_DrawUI(textureViewer, &textureToView);
 	}
 
-	bool showDemo = true;
-	ImGui::ShowDemoWindow(&showDemo);
+// static	bool showDemo = true;
+//	ImGui::ShowDemoWindow(&showDemo);
 
 	ImGui::EndFrame();
 	ImGui::Render();
