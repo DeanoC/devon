@@ -31,6 +31,8 @@ set(Deps
 		gfx_image_interface
 		gfx_image_impl_basic
 		gfx_imageio
+		gfx_imagecompress
+		gfx_imagedecompress
 		gfx_theforge
 		gfx_shadercompiler
 		gfx_imgui_al2o3_theforge_bindings

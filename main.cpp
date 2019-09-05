@@ -17,6 +17,7 @@
 
 #include "devon_display.h"
 #include "texture_viewer.hpp"
+#include "gfx_imagedecompress/imagedecompress.h"
 
 const uint32_t FRAMES_AHEAD = 3;
 
@@ -87,6 +88,7 @@ static void LoadTextureToView(char const* fileName)
 	TinyImageFormat originalFormat = textureToView.cpu->format;
 	bool supported = TheForge_CanShaderReadFrom(renderer, textureToView.cpu->format);
 
+	supported = false;
 	// force CPU for testing if we can
 //	if(!TinyImageFormat_IsCompressed(originalFormat)) supported = false;
 
@@ -104,12 +106,19 @@ static void LoadTextureToView(char const* fileName)
 				textureToView.cpu = converted;
 			}
 		} else {
-			LOGINFOF("%s with format %s isn't supported by this GPU/backend",
-							 fileName,
-							 TinyImageFormat_Name(textureToView.cpu->format));
-			Image_Destroy(textureToView.cpu);
-			textureToView.cpu = nullptr;
-			return;
+			Image_ImageHeader const* converted = textureToView.cpu;
+			converted = Image_Decompress(textureToView.cpu);
+			if(converted == nullptr || converted == textureToView.cpu ) {
+				LOGINFOF("%s with format %s isn't supported by this GPU/backend and can't be converted",
+								 fileName,
+								 TinyImageFormat_Name(textureToView.cpu->format));
+				Image_Destroy(textureToView.cpu);
+				textureToView.cpu = nullptr;
+				return;
+			} else {
+				Image_Destroy(textureToView.cpu);
+				textureToView.cpu = converted;
+			}
 		}
 	}
 
