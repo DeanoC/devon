@@ -88,9 +88,8 @@ static void LoadTextureToView(char const* fileName)
 	TinyImageFormat originalFormat = textureToView.cpu->format;
 	bool supported = TheForge_CanShaderReadFrom(renderer, textureToView.cpu->format);
 
-	supported = false;
-	// force CPU for testing if we can
-//	if(!TinyImageFormat_IsCompressed(originalFormat)) supported = false;
+	// force CPU for testing
+	// supported = false;
 
 	if(!supported) {
 		// convert to R8G8B8A8 for now
@@ -177,27 +176,6 @@ static void ShowMenuFile()
 		}
 
 	}
-/*	if (ImGui::BeginMenu("Open Recent"))
-	{
-		ImGui::MenuItem("fish_hat.c");
-		ImGui::MenuItem("fish_hat.inl");
-		ImGui::MenuItem("fish_hat.h");
-		if (ImGui::BeginMenu("More.."))
-		{
-			ImGui::MenuItem("Hello");
-			ImGui::MenuItem("Sailor");
-			if (ImGui::BeginMenu("Recurse.."))
-			{
-				ShowExampleMenuFile();
-				ImGui::EndMenu();
-			}
-			ImGui::EndMenu();
-		}
-		ImGui::EndMenu();
-	}
- */
-//	if (ImGui::MenuItem("Save", "Ctrl+S")) {}
-//	if (ImGui::MenuItem("Save As..")) {}
 	ImGui::Separator();
 	if (ImGui::MenuItem("Quit", "Alt+F4")) {
 		GameAppShell_Quit();
@@ -212,17 +190,6 @@ static void ShowAppMainMenuBar()
 		{
 			ShowMenuFile();
 			ImGui::EndMenu();
-		}
-		if (ImGui::BeginMenu("Edit"))
-		{
-/*			if (ImGui::MenuItem("Undo", "CTRL+Z")) {}
-			if (ImGui::MenuItem("Redo", "CTRL+Y", false, false)) {}  // Disabled item
-			ImGui::Separator();
-			if (ImGui::MenuItem("Cut", "CTRL+X")) {}
-			if (ImGui::MenuItem("Copy", "CTRL+C")) {}
-			if (ImGui::MenuItem("Paste", "CTRL+V")) {}*/
-			ImGui::EndMenu();
-
 		}
 		ImGui::EndMainMenuBar();
 	}
@@ -355,9 +322,6 @@ static void Update(double deltaMS) {
 	if(textureToView.cpu != nullptr) {
 		TextureViewer_DrawUI(textureViewer, &textureToView);
 	}
-
-// static	bool showDemo = true;
-//	ImGui::ShowDemoWindow(&showDemo);
 
 	ImGui::EndFrame();
 	ImGui::Render();
