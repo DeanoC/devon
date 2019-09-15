@@ -7,26 +7,27 @@
 #include "gfx_image/utils.h"
 #include "utils_gameappshell/gameappshell.h"
 #include "utils_simple_logmanager/logmanager.h"
-#include "gfx_shadercompiler/compiler.h"
 #include "al2o3_vfile/vfile.h"
 #include "al2o3_os/filesystem.h"
 #include "input_basic/input.h"
+
+#include "render_basics/theforge/api.h"
+#include "render_basics/api.h"
+#include "render_basics/cmd.h"
+#include "render_basics/view.h"
+#include "render_basics/framebuffer.h"
+
 #include "gfx_imgui_al2o3_theforge_bindings/bindings.h"
 #include "gfx_imgui/imgui.h"
 #include "utils_nativefiledialogs/dialogs.h"
 
-#include "devon_display.h"
 #include "texture_viewer.hpp"
 #include "gfx_imagedecompress/imagedecompress.h"
 
-const uint32_t FRAMES_AHEAD = 3;
-
-TheForge_RendererHandle renderer;
-TheForge_QueueHandle graphicsQueue;
-TheForge_CmdPoolHandle cmdPool;
-Display_ContextHandle display;
-
-ShaderCompiler_ContextHandle shaderCompiler;
+Render_RendererHandle renderer;
+Render_QueueHandle graphicsQueue;
+Render_CmdPoolHandle cmdPool;
+Render_FrameBufferHandle frameBuffer;
 
 InputBasic_ContextHandle input;
 InputBasic_KeyboardHandle keyboard;
@@ -37,8 +38,6 @@ enkiTaskSchedulerHandle taskScheduler;
 enum AppKey {
 	AppKey_Quit
 };
-
-ImguiBindings_ContextHandle imguiBindings;
 
 TextureViewerHandle textureViewer;
 ImguiBindings_Texture textureToView;
@@ -58,7 +57,7 @@ static void LoadTextureToView(char const* fileName)
 		textureToView.cpu = nullptr;
 	}
 	if(textureToView.gpu != nullptr) {
-		TheForge_RemoveTexture(renderer, textureToView.gpu);
+		TheForge_RemoveTexture(renderer->renderer, textureToView.gpu);
 		textureToView.gpu = nullptr;
 	}
 
@@ -86,7 +85,7 @@ static void LoadTextureToView(char const* fileName)
 	}
 
 	TinyImageFormat originalFormat = textureToView.cpu->format;
-	bool supported = TheForge_CanShaderReadFrom(renderer, textureToView.cpu->format);
+	bool supported = TheForge_CanShaderReadFrom(renderer->renderer, textureToView.cpu->format);
 
 	// force CPU for testing
 	// supported = false;
@@ -205,50 +204,22 @@ static bool Init() {
 	Os_GetCurrentDir(currentDir, 2048);
 	LOGINFO(currentDir);
 #endif
-
-	// window and renderer setup
-	TheForge_RendererDesc desc{
-			TheForge_ST_6_0,
-			TheForge_GM_SINGLE,
-			TheForge_D3D_FL_12_0,
-	};
-
-	renderer = TheForge_RendererCreate("Devon", &desc);
-	if (!renderer) {
-		LOGERROR("TheForge_RendererCreate failed");
-
-		return false;
-	}
-	shaderCompiler = ShaderCompiler_Create();
-	if (!shaderCompiler) {
-		LOGERROR("ShaderCompiler_Create failed");
-		return false;
-	}
-#ifndef NDEBUG
-	ShaderCompiler_SetOptimizationLevel(shaderCompiler, ShaderCompiler_OPT_None);
-#endif
-	// change from platform default to vulkan if using the vulkan backend
-	if(TheForge_GetRendererApi(renderer) == TheForge_API_VULKAN) {
-		ShaderCompiler_SetOutput(shaderCompiler, ShaderCompiler_OT_SPIRV, 13);
-	}
-
-	taskScheduler = enkiNewTaskScheduler(&EnkiAlloc, &EnkiFree, &Memory_GlobalAllocator);
-
-	// create basic graphics queues fences etc.
-	TheForge_QueueDesc queueDesc{};
-	queueDesc.type = TheForge_CP_DIRECT;
-	TheForge_AddQueue(renderer, &queueDesc, &graphicsQueue);
-	TheForge_AddCmdPool(renderer, graphicsQueue, false, &cmdPool);
-
-	display = Display_Create(renderer, graphicsQueue, cmdPool, FRAMES_AHEAD);
-
-	// init TheForge resourceloader
-	TheForge_InitResourceLoaderInterface(renderer, nullptr);
-
 	// setup basic input and map quit key
 	input = InputBasic_Create();
 	uint32_t userIdBlk = InputBasic_AllocateUserIdBlock(input); // 1st 1000 id are the apps
 	ASSERT(userIdBlk == 0);
+
+	renderer = Render_RendererCreate(input);
+	if (!renderer) {
+		LOGERROR("Render_RendererCreate failed");
+
+		return false;
+	}
+
+	taskScheduler = enkiNewTaskScheduler(&EnkiAlloc, &EnkiFree, &Memory_GlobalAllocator);
+
+	GameAppShell_WindowDesc windowDesc;
+	GameAppShell_WindowGetCurrentDesc(&windowDesc);
 
 	if (InputBasic_GetKeyboardCount(input) > 0) {
 		keyboard = InputBasic_KeyboardCreate(input, 0);
@@ -256,33 +227,27 @@ static bool Init() {
 	if (InputBasic_GetMouseCount(input) > 0) {
 		mouse = InputBasic_MouseCreate(input, 0);
 	}
-	if (keyboard)
+	if (keyboard) {
 		InputBasic_MapToKey(input, AppKey_Quit, keyboard, InputBasic_Key_Escape);
+	}
+
+	Render_FrameBufferDesc fbDesc{};
+	fbDesc.platformHandle = GameAppShell_GetPlatformWindowPtr();
+	fbDesc.queue = Render_RendererGetPrimaryQueue(renderer, Render_GQT_GRAPHICS);
+	fbDesc.commandPool = Render_RendererGetPrimaryCommandPool(renderer, Render_GQT_GRAPHICS);
+	fbDesc.frameBufferWidth = windowDesc.width;
+	fbDesc.frameBufferHeight = windowDesc.height;
+	fbDesc.frameBufferCount = 3;
+	fbDesc.colourFormat = TinyImageFormat_UNDEFINED;
+	fbDesc.depthFormat = TinyImageFormat_UNDEFINED;
+	fbDesc.embeddedImgui = true;
+	frameBuffer = Render_FrameBufferCreate(renderer, &fbDesc);
 
 	static char const DefaultFolder[] = "";
 	lastFolder = (char*) MEMORY_CALLOC(strlen(DefaultFolder)+1,1);
 	memcpy(lastFolder, DefaultFolder, strlen(DefaultFolder));
 
-	imguiBindings = ImguiBindings_Create(renderer, shaderCompiler, input,
-																			 20,
-																			 FRAMES_AHEAD,
-																			 Display_GetBackBufferFormat(display),
-																			 TheForge_SC_1,
-																			 0);
-	if (!imguiBindings) {
-		LOGERROR("ImguiBindings_Create failed");
-		return false;
-	}
-
-
-	textureViewer = TextureViewer_Create(renderer,
-																			 shaderCompiler,
-																			 imguiBindings,
-																			 FRAMES_AHEAD,
-																			 Display_GetBackBufferFormat(display),
-																			 Display_GetDepthBufferFormat(display),
-																			 TheForge_SC_1,
-																			 0);
+	textureViewer = TextureViewer_Create(renderer, frameBuffer);
 	if(!textureViewer) {
 		LOGERROR("TextureViewer_Create failed");
 		return false;
@@ -302,19 +267,17 @@ static void Update(double deltaMS) {
 
 
 	InputBasic_SetWindowSize(input, windowDesc.width, windowDesc.height);
-	ImguiBindings_SetWindowSize(imguiBindings,
-															windowDesc.width,
-															windowDesc.height,
-															windowDesc.dpiBackingScale[0],
-															windowDesc.dpiBackingScale[1]);
-
 	InputBasic_Update(input, deltaMS);
 	if (InputBasic_GetAsBool(input, AppKey_Quit)) {
 		GameAppShell_Quit();
 	}
 
-	// Imgui start
-	ImguiBindings_UpdateInput(imguiBindings, deltaMS);
+	Render_FrameBufferUpdate(frameBuffer,
+													 windowDesc.width, windowDesc.height,
+													 windowDesc.dpiBackingScale[0],
+													 windowDesc.dpiBackingScale[1],
+													 deltaMS);
+
 	ImGui::NewFrame();
 
 	ShowAppMainMenuBar();
@@ -329,37 +292,13 @@ static void Update(double deltaMS) {
 
 static void Draw(double deltaMS) {
 
-	TheForge_RenderTargetHandle renderTarget;
-	TheForge_RenderTargetHandle depthTarget;
+	Render_RenderTargetHandle renderTargets[2] = {nullptr, nullptr};
 
-	TheForge_CmdHandle cmd = Display_NewFrame(display, &renderTarget, &depthTarget);
-	TheForge_RenderTargetDesc const *renderTargetDesc = TheForge_RenderTargetGetDesc(renderTarget);
+	Render_CmdHandle cmd = Render_FrameBufferNewFrame(frameBuffer, renderTargets + 0, renderTargets + 1);
 
 	TextureViewer_RenderSetup(textureViewer, cmd);
 
-	TheForge_LoadActionsDesc loadActions = {0};
-	loadActions.loadActionsColor[0] = TheForge_LA_CLEAR;
-	loadActions.clearColorValues[0] = {0.45f, 0.5f, 0.6f, 0.0f};
-	loadActions.loadActionDepth = TheForge_LA_CLEAR;
-	loadActions.clearDepth.depth = 1.0f;
-	loadActions.clearDepth.stencil = 0;
-	TheForge_CmdBindRenderTargets(cmd,
-																1,
-																&renderTarget,
-																depthTarget,
-																&loadActions,
-																nullptr, nullptr,
-																-1, -1);
-	TheForge_CmdSetViewport(cmd, 0.0f, 0.0f,
-													(float) renderTargetDesc->width, (float) renderTargetDesc->height,
-													0.0f, 1.0f);
-	TheForge_CmdSetScissor(cmd, 0, 0,
-												 renderTargetDesc->width, renderTargetDesc->height);
-
-	ImguiBindings_Render(imguiBindings, cmd);
-
-
-	Display_Present(display);
+	Render_FrameBufferPresent(frameBuffer);
 }
 
 static void Unload() {
@@ -380,11 +319,9 @@ static void Exit() {
 		textureToView.cpu = nullptr;
 	}
 	if(textureToView.gpu) {
-		TheForge_RemoveTexture(renderer, textureToView.gpu);
+		TheForge_RemoveTexture(renderer->renderer, textureToView.gpu);
 		textureToView.gpu = nullptr;
 	}
-
-	ImguiBindings_Destroy(imguiBindings);
 
 	TextureViewer_Destroy(textureViewer); textureViewer = nullptr;
 
@@ -392,16 +329,10 @@ static void Exit() {
 	InputBasic_KeyboardDestroy(keyboard);
 	InputBasic_Destroy(input);
 
-	TheForge_RemoveResourceLoaderInterface(renderer);
-
-	Display_Destroy(display);
-
-	TheForge_RemoveCmdPool(renderer, cmdPool);
-	TheForge_RemoveQueue(graphicsQueue);
+	Render_FrameBufferDestroy(renderer, frameBuffer);
 
 	enkiDeleteTaskScheduler(taskScheduler);
-	ShaderCompiler_Destroy(shaderCompiler);
-	TheForge_RendererDestroy(renderer);
+	Render_RendererDestroy(renderer);
 }
 
 static void Abort() {

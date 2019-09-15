@@ -23,8 +23,6 @@ project(${ProjectName})
 
 set(Src
 		main.cpp
-		devon_display.cpp
-		devon_display.h
 		texture_viewer.cpp
 		texture_viewer.hpp
 		)
@@ -45,11 +43,10 @@ set(Deps
 		gfx_theforge
 		gfx_shadercompiler
 		gfx_imgui_al2o3_theforge_bindings
-		lua_base5.3
-		lua_al2o3_os
-		lua_image
 		input_basic_interface
 		input_basic_impl_gainput
+		render_basics_interface
+		render_basics_impl_theforge
 		utils_simple_logmanager
 		utils_misccpp
 		utils_gameappshell_interface

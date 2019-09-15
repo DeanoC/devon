@@ -3,6 +3,13 @@
 #include "gfx_imgui/imgui.h"
 #include "gfx_imgui/imgui_internal.h"
 #include "al2o3_cadt/vector.h"
+
+#include "render_basics/theforge/api.h"
+#include "render_basics/api.h"
+#include "render_basics/cmd.h"
+#include "render_basics/view.h"
+#include "render_basics/framebuffer.h"
+
 #include "texture_viewer.hpp"
 
 struct UniformBuffer {
@@ -18,10 +25,8 @@ struct UniformBuffer {
 static const uint64_t UNIFORM_BUFFER_SIZE_PER_FRAME = 256;
 
 struct TextureViewer {
-	TheForge_RendererHandle renderer;
-	ShaderCompiler_ContextHandle shaderCompiler;
-	ImguiBindings_ContextHandle imgui;
-	uint32_t maxFrames;
+	Render_RendererHandle renderer;
+	Render_FrameBufferHandle frameBuffer;
 
 	TheForge_ShaderHandle shader;
 	TheForge_SamplerHandle pointSampler;
@@ -51,36 +56,35 @@ struct TextureViewer {
 namespace {
 
 static uint32_t const DummyData[] = {
-																0x00FFFF00, 0x00FFFF00, 0x00FFFF00, 0x00FFFF00,
-																0x00000000, 0x00000000, 0x00000000, 0x00000000,
-																0x00800000, 0x00800000, 0x00800000, 0x00800000,
-																0x00008000, 0x00008000, 0x00008000, 0x00008000,
+		0x00FFFF00, 0x00FFFF00, 0x00FFFF00, 0x00FFFF00,
+		0x00000000, 0x00000000, 0x00000000, 0x00000000,
+		0x00800000, 0x00800000, 0x00800000, 0x00800000,
+		0x00008000, 0x00008000, 0x00008000, 0x00008000,
 
-																0x80FFFF80, 0x80FFFF80, 0x80FFFF80, 0x80FFFF80,
-																0x80000080, 0x80000080, 0x80000080, 0x80000080,
-																0x80800080, 0x80800080, 0x80800080, 0x80800080,
-																0x80008080, 0x80008080, 0x80008080, 0x80008080,
+		0x80FFFF80, 0x80FFFF80, 0x80FFFF80, 0x80FFFF80,
+		0x80000080, 0x80000080, 0x80000080, 0x80000080,
+		0x80800080, 0x80800080, 0x80800080, 0x80800080,
+		0x80008080, 0x80008080, 0x80008080, 0x80008080,
 
-																0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
-																0xFF0000FF, 0xFF0000FF, 0xFF0000FF, 0xFF0000FF,
-																0xFF8000FF, 0xFF8000FF, 0xFF8000FF, 0xFF8000FF,
-																0xFF0080FF, 0xFF0080FF, 0xFF0080FF, 0xFF0080FF };
+		0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+		0xFF0000FF, 0xFF0000FF, 0xFF0000FF, 0xFF0000FF,
+		0xFF8000FF, 0xFF8000FF, 0xFF8000FF, 0xFF8000FF,
+		0xFF0080FF, 0xFF0080FF, 0xFF0080FF, 0xFF0080FF};
 
-static void CreateDummyTextures(TextureViewer *ctx)
-{
+static void CreateDummyTextures(TextureViewer *ctx) {
 	TheForge_RawImageData const raw2DImageData{
 			(unsigned char *) DummyData,
-			TinyImageFormat_R8G8B8A8_UNORM,4,4,1,1,1,
+			TinyImageFormat_R8G8B8A8_UNORM, 4, 4, 1, 1, 1,
 			true
 	};
 	TheForge_RawImageData const raw2DArrayImageData{
 			(unsigned char *) DummyData,
-			TinyImageFormat_R8G8B8A8_UNORM,4,4,1,3,1,
+			TinyImageFormat_R8G8B8A8_UNORM, 4, 4, 1, 3, 1,
 			true
 	};
 	TheForge_RawImageData const raw3DImageData{
 			(unsigned char *) DummyData,
-			TinyImageFormat_R8G8B8A8_UNORM,4,4,3,1,1,
+			TinyImageFormat_R8G8B8A8_UNORM, 4, 4, 3, 1, 1,
 			true
 	};
 
@@ -106,8 +110,9 @@ static bool CreateShaders(TextureViewer *ctx) {
 	static char const *const fragEntryPoint = "FS_main";
 
 	VFile_Handle vfile = VFile_FromFile("textureviewer_vertex.hlsl", Os_FM_Read);
-	if (!vfile)
+	if (!vfile) {
 		return false;
+	}
 	VFile_Handle ffile = VFile_FromFile("textureviewer_fragment.hlsl", Os_FM_Read);
 	if (!ffile) {
 		VFile_Close(vfile);
@@ -115,7 +120,7 @@ static bool CreateShaders(TextureViewer *ctx) {
 	}
 	ShaderCompiler_Output vout;
 	bool vokay = ShaderCompiler_Compile(
-			ctx->shaderCompiler, ShaderCompiler_ST_VertexShader,
+			ctx->renderer->shaderCompiler, ShaderCompiler_ST_VertexShader,
 			VFile_GetName(vfile), vertEntryPoint, vfile,
 			&vout);
 	if (vout.log != nullptr) {
@@ -123,7 +128,7 @@ static bool CreateShaders(TextureViewer *ctx) {
 	}
 	ShaderCompiler_Output fout;
 	bool fokay = ShaderCompiler_Compile(
-			ctx->shaderCompiler, ShaderCompiler_ST_FragmentShader,
+			ctx->renderer->shaderCompiler, ShaderCompiler_ST_FragmentShader,
 			VFile_GetName(ffile), fragEntryPoint, ffile,
 			&fout);
 	if (fout.log != nullptr) {
@@ -151,7 +156,7 @@ static bool CreateShaders(TextureViewer *ctx) {
 	sdesc.frag.code = (char *) fout.shader;
 	sdesc.frag.entryPoint = fragEntryPoint;
 	sdesc.frag.macroCount = 0;
-	TheForge_AddShader(ctx->renderer, &sdesc, &ctx->shader);
+	TheForge_AddShader(ctx->renderer->renderer, &sdesc, &ctx->shader);
 #else
 	TheForge_BinaryShaderDesc bdesc;
 	bdesc.stages = (TheForge_ShaderStage) (TheForge_SS_FRAG | TheForge_SS_VERT);
@@ -161,7 +166,7 @@ static bool CreateShaders(TextureViewer *ctx) {
 	bdesc.frag.byteCode = (char *) fout.shader;
 	bdesc.frag.byteCodeSize = (uint32_t) fout.shaderSize;
 	bdesc.frag.entryPoint = fragEntryPoint;
-	TheForge_AddShaderBinary(ctx->renderer, &bdesc, &ctx->shader);
+	TheForge_AddShaderBinary(ctx->renderer->renderer, &bdesc, &ctx->shader);
 #endif
 	MEMORY_FREE((void *) vout.log);
 	MEMORY_FREE((void *) vout.shader);
@@ -172,22 +177,15 @@ static bool CreateShaders(TextureViewer *ctx) {
 
 }
 
-TextureViewerHandle TextureViewer_Create(TheForge_RendererHandle renderer,
-																				 ShaderCompiler_ContextHandle shaderCompiler,
-																				 ImguiBindings_ContextHandle imgui,
-																				 uint32_t maxFrames,
-																				 TinyImageFormat renderTargetFormat,
-																				 TinyImageFormat depthStencilFormat,
-																				 TheForge_SampleCount sampleCount,
-																				 uint32_t sampleQuality) {
+TextureViewerHandle TextureViewer_Create(Render_RendererHandle renderer,
+																				 Render_FrameBufferHandle frameBuffer) {
 	auto ctx = (TextureViewer *) MEMORY_CALLOC(1, sizeof(TextureViewer));
-	if (!ctx)
+	if (!ctx) {
 		return nullptr;
+	}
 
 	ctx->renderer = renderer;
-	ctx->shaderCompiler = shaderCompiler;
-	ctx->imgui = imgui;
-	ctx->maxFrames = maxFrames;
+	ctx->frameBuffer = frameBuffer;
 
 	if (!CreateShaders(ctx)) {
 		MEMORY_FREE(ctx);
@@ -251,7 +249,7 @@ TextureViewerHandle TextureViewer_Create(TheForge_RendererHandle renderer,
 	};
 
 	static TheForge_BufferDesc const ubDesc{
-			UNIFORM_BUFFER_SIZE_PER_FRAME * ctx->maxFrames,
+			UNIFORM_BUFFER_SIZE_PER_FRAME * ctx->frameBuffer->frameBufferCount,
 			TheForge_RMU_CPU_TO_GPU,
 			(TheForge_BufferCreationFlags) (TheForge_BCF_PERSISTENT_MAP_BIT),
 			TheForge_RS_UNDEFINED,
@@ -265,22 +263,27 @@ TextureViewerHandle TextureViewer_Create(TheForge_RendererHandle renderer,
 			TheForge_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
 	};
 
-	TheForge_AddSampler(ctx->renderer, &pointSamplerDesc, &ctx->pointSampler);
-	if (!ctx->pointSampler)
+	TheForge_AddSampler(ctx->renderer->renderer, &pointSamplerDesc, &ctx->pointSampler);
+	if (!ctx->pointSampler) {
 		return nullptr;
-	TheForge_AddSampler(ctx->renderer, &bilinearSamplerDesc, &ctx->bilinearSampler);
-	if (!ctx->bilinearSampler)
+	}
+	TheForge_AddSampler(ctx->renderer->renderer, &bilinearSamplerDesc, &ctx->bilinearSampler);
+	if (!ctx->bilinearSampler) {
 		return nullptr;
+	}
 
-	TheForge_AddBlendState(ctx->renderer, &blendDesc, &ctx->blendState);
-	if (!ctx->blendState)
+	TheForge_AddBlendState(ctx->renderer->renderer, &blendDesc, &ctx->blendState);
+	if (!ctx->blendState) {
 		return nullptr;
-	TheForge_AddDepthState(ctx->renderer, &depthStateDesc, &ctx->depthState);
-	if (!ctx->depthState)
+	}
+	TheForge_AddDepthState(ctx->renderer->renderer, &depthStateDesc, &ctx->depthState);
+	if (!ctx->depthState) {
 		return nullptr;
-	TheForge_AddRasterizerState(ctx->renderer, &rasterizerStateDesc, &ctx->rasterizationState);
-	if (!ctx->rasterizationState)
+	}
+	TheForge_AddRasterizerState(ctx->renderer->renderer, &rasterizerStateDesc, &ctx->rasterizationState);
+	if (!ctx->rasterizationState) {
 		return nullptr;
+	}
 
 	TheForge_ShaderHandle shaders[]{ctx->shader};
 	TheForge_SamplerHandle samplers[]{ctx->pointSampler, ctx->bilinearSampler};
@@ -291,11 +294,13 @@ TextureViewerHandle TextureViewer_Create(TheForge_RendererHandle renderer,
 	rootSignatureDesc.staticSamplerCount = 2;
 	rootSignatureDesc.pStaticSamplerNames = staticSamplerNames;
 	rootSignatureDesc.pStaticSamplers = samplers;
-	TheForge_AddRootSignature(ctx->renderer, &rootSignatureDesc, &ctx->rootSignature);
-	if (!ctx->rootSignature)
+	TheForge_AddRootSignature(ctx->renderer->renderer, &rootSignatureDesc, &ctx->rootSignature);
+	if (!ctx->rootSignature) {
 		return nullptr;
+	}
 
 	TheForge_PipelineDesc pipelineDesc{};
+	TinyImageFormat colourFormats[] = {Render_FrameBufferColourFormat(frameBuffer)};
 	pipelineDesc.type = TheForge_PT_GRAPHICS;
 	TheForge_GraphicsPipelineDesc &gfxPipeDesc = pipelineDesc.graphicsDesc;
 	gfxPipeDesc.shaderProgram = ctx->shader;
@@ -305,26 +310,29 @@ TextureViewerHandle TextureViewer_Create(TheForge_RendererHandle renderer,
 	gfxPipeDesc.depthState = ctx->depthState;
 	gfxPipeDesc.rasterizerState = ctx->rasterizationState;
 	gfxPipeDesc.renderTargetCount = 1;
-	gfxPipeDesc.pColorFormats = &renderTargetFormat;
-	gfxPipeDesc.depthStencilFormat = depthStencilFormat;
-	gfxPipeDesc.sampleCount = sampleCount;
-	gfxPipeDesc.sampleQuality = sampleQuality;
+	gfxPipeDesc.pColorFormats = colourFormats;
+	gfxPipeDesc.depthStencilFormat = TinyImageFormat_UNDEFINED;
+	gfxPipeDesc.sampleCount = TheForge_SC_1;
+	gfxPipeDesc.sampleQuality = 0;
 	gfxPipeDesc.primitiveTopo = TheForge_PT_TRI_LIST;
-	TheForge_AddPipeline(ctx->renderer, &pipelineDesc, &ctx->pipeline);
-	if (!ctx->pipeline)
+	TheForge_AddPipeline(ctx->renderer->renderer, &pipelineDesc, &ctx->pipeline);
+	if (!ctx->pipeline) {
 		return nullptr;
+	}
 
 	TheForge_DescriptorBinderDesc descriptorBinderDesc[] = {
 			{ctx->rootSignature, 20},
 			{ctx->rootSignature, 20},
 	};
-	TheForge_AddDescriptorBinder(ctx->renderer, 0, 2, descriptorBinderDesc, &ctx->descriptorBinder);
-	if (!ctx->descriptorBinder)
+	TheForge_AddDescriptorBinder(ctx->renderer->renderer, 0, 2, descriptorBinderDesc, &ctx->descriptorBinder);
+	if (!ctx->descriptorBinder) {
 		return nullptr;
+	}
 
-	TheForge_AddBuffer(ctx->renderer, &ubDesc, &ctx->uniformBuffer);
-	if (!ctx->uniformBuffer)
+	TheForge_AddBuffer(ctx->renderer->renderer, &ubDesc, &ctx->uniformBuffer);
+	if (!ctx->uniformBuffer) {
 		return nullptr;
+	}
 
 	CreateDummyTextures(ctx);
 
@@ -336,7 +344,7 @@ TextureViewerHandle TextureViewer_Create(TheForge_RendererHandle renderer,
 	ctx->zoom = 1.0f;
 
 	static char const DefaultName[] = "Texture Viewer";
-	ctx->windowName = (char*) MEMORY_CALLOC(strlen(DefaultName)+1,1);
+	ctx->windowName = (char *) MEMORY_CALLOC(strlen(DefaultName) + 1, 1);
 	memcpy(ctx->windowName, DefaultName, strlen(DefaultName));
 
 	return ctx;
@@ -344,45 +352,60 @@ TextureViewerHandle TextureViewer_Create(TheForge_RendererHandle renderer,
 
 void TextureViewer_Destroy(TextureViewerHandle handle) {
 	auto ctx = (TextureViewer *) handle;
-	if (!ctx)
+	if (!ctx) {
 		return;
+	}
 
 	MEMORY_FREE(ctx->windowName);
 
-	if (ctx->dummy3DTexture)
-		TheForge_RemoveTexture(ctx->renderer, ctx->dummy3DTexture);
-	if (ctx->dummy2DArrayTexture)
-		TheForge_RemoveTexture(ctx->renderer, ctx->dummy2DArrayTexture);
-	if (ctx->dummy2DTexture)
-		TheForge_RemoveTexture(ctx->renderer, ctx->dummy2DTexture);
+	if (ctx->dummy3DTexture) {
+		TheForge_RemoveTexture(ctx->renderer->renderer, ctx->dummy3DTexture);
+	}
+	if (ctx->dummy2DArrayTexture) {
+		TheForge_RemoveTexture(ctx->renderer->renderer, ctx->dummy2DArrayTexture);
+	}
+	if (ctx->dummy2DTexture) {
+		TheForge_RemoveTexture(ctx->renderer->renderer, ctx->dummy2DTexture);
+	}
 
-	if (ctx->uniformBuffer)
-		TheForge_RemoveBuffer(ctx->renderer, ctx->uniformBuffer);
-	if (ctx->descriptorBinder)
-		TheForge_RemoveDescriptorBinder(ctx->renderer, ctx->descriptorBinder);
-	if (ctx->pipeline)
-		TheForge_RemovePipeline(ctx->renderer, ctx->pipeline);
-	if (ctx->rootSignature)
-		TheForge_RemoveRootSignature(ctx->renderer, ctx->rootSignature);
-	if (ctx->rasterizationState)
-		TheForge_RemoveRasterizerState(ctx->renderer, ctx->rasterizationState);
-	if (ctx->depthState)
-		TheForge_RemoveDepthState(ctx->renderer, ctx->depthState);
-	if (ctx->blendState)
-		TheForge_RemoveBlendState(ctx->renderer, ctx->blendState);
-	if (ctx->bilinearSampler)
-		TheForge_RemoveSampler(ctx->renderer, ctx->bilinearSampler);
-	if (ctx->pointSampler)
-		TheForge_RemoveSampler(ctx->renderer, ctx->pointSampler);
-	if (ctx->shader)
-		TheForge_RemoveShader(ctx->renderer, ctx->shader);
+	if (ctx->uniformBuffer) {
+		TheForge_RemoveBuffer(ctx->renderer->renderer, ctx->uniformBuffer);
+	}
+	if (ctx->descriptorBinder) {
+		TheForge_RemoveDescriptorBinder(ctx->renderer->renderer, ctx->descriptorBinder);
+	}
+	if (ctx->pipeline) {
+		TheForge_RemovePipeline(ctx->renderer->renderer, ctx->pipeline);
+	}
+	if (ctx->rootSignature) {
+		TheForge_RemoveRootSignature(ctx->renderer->renderer, ctx->rootSignature);
+	}
+	if (ctx->rasterizationState) {
+		TheForge_RemoveRasterizerState(ctx->renderer->renderer, ctx->rasterizationState);
+	}
+	if (ctx->depthState) {
+		TheForge_RemoveDepthState(ctx->renderer->renderer, ctx->depthState);
+	}
+	if (ctx->blendState) {
+		TheForge_RemoveBlendState(ctx->renderer->renderer, ctx->blendState);
+	}
+	if (ctx->bilinearSampler) {
+		TheForge_RemoveSampler(ctx->renderer->renderer, ctx->bilinearSampler);
+	}
+	if (ctx->pointSampler) {
+		TheForge_RemoveSampler(ctx->renderer->renderer, ctx->pointSampler);
+	}
+	if (ctx->shader) {
+		TheForge_RemoveShader(ctx->renderer->renderer, ctx->shader);
+	}
 
 	MEMORY_FREE(ctx);
 }
 static void ImCallback(ImDrawList const *list, ImDrawCmd const *imcmd) {
 
-	if (imcmd->TextureId == nullptr)
+	if (imcmd->TextureId == nullptr) {
 		return;
+	}
 
 	auto ctx = (TextureViewer *) imcmd->UserCallbackData;
 
@@ -402,7 +425,7 @@ static void ImCallback(ImDrawList const *list, ImDrawCmd const *imcmd) {
 	params[0].pBuffers = &ctx->uniformBuffer;
 	params[0].pOffsets = &baseUniformOffset;
 	params[0].count = 1;
-	if(Image_IsArray(texture->cpu)) {
+	if (Image_IsArray(texture->cpu)) {
 		params[1].pName = "colourTexture";
 		params[1].pTextures = &ctx->dummy2DTexture;
 		params[1].count = 1;
@@ -435,8 +458,9 @@ static void ImCallback(ImDrawList const *list, ImDrawCmd const *imcmd) {
 
 void TextureViewer_DrawUI(TextureViewerHandle handle, ImguiBindings_Texture *texture) {
 	auto ctx = (TextureViewer *) handle;
-	if (!ctx)
+	if (!ctx) {
 		return;
+	}
 
 	ImGuiWindowFlags window_flags = ImGuiWindowFlags_AlwaysAutoResize;
 
@@ -471,35 +495,36 @@ void TextureViewer_DrawUI(TextureViewerHandle handle, ImguiBindings_Texture *tex
 	drawList->PopTextureID();
 
 	// size of the auto size window takes
-	if (rb.y < window->DC.CursorPos.y + 32.0f)
+	if (rb.y < window->DC.CursorPos.y + 32.0f) {
 		rb.y = window->DC.CursorPos.y + 32.0f;
+	}
 	ImRect const bb2(window->DC.CursorPos, rb);
 	ImGui::ItemSize(bb2);
 
 	int forceMipLevel = 0;
 	int sliceToView = 0;
 	bool signedRGB = false;
-	if(Image_MipMapCountOf(texture->cpu) > 1) {
+	if (Image_MipMapCountOf(texture->cpu) > 1) {
 		forceMipLevel = (int) ctx->uniforms.forceMipLevel;
 		ImGui::SameLine();
 		ImGui::VSliderInt("Mipmap Level", ImVec2(20.0f, 100.0f),
-											&forceMipLevel, 0, (int) Image_LinkedImageCountOf(texture->cpu)-1);
+											&forceMipLevel, 0, (int) Image_LinkedImageCountOf(texture->cpu) - 1);
 	}
-	ctx->uniforms.forceMipLevel = (int32_t)forceMipLevel;
-	if(texture->cpu->slices > 1) {
+	ctx->uniforms.forceMipLevel = (int32_t) forceMipLevel;
+	if (texture->cpu->slices > 1) {
 		sliceToView = (int) ctx->uniforms.sliceToView;
 		ImGui::SameLine();
 		ImGui::VSliderInt("Slice", ImVec2(20.0f, 100.0f),
 											&sliceToView, 0, (int) texture->cpu->slices - 1);
 	}
-	if(TinyImageFormat_IsSigned(texture->cpu->format)) {
+	if (TinyImageFormat_IsSigned(texture->cpu->format)) {
 		signedRGB = (bool) ctx->uniforms.signedRGB;
 		ImGui::SameLine();
 		ImGui::Checkbox("Signed decode", &signedRGB);
 	}
 
 	ctx->uniforms.numSlices = texture->cpu->slices;
-	ctx->uniforms.sliceToView = (uint32_t)sliceToView;
+	ctx->uniforms.sliceToView = (uint32_t) sliceToView;
 	ctx->uniforms.signedRGB = signedRGB;
 
 	ImGui::End();
@@ -507,15 +532,18 @@ void TextureViewer_DrawUI(TextureViewerHandle handle, ImguiBindings_Texture *tex
 
 void TextureViewer_RenderSetup(TextureViewerHandle handle, TheForge_CmdHandle cmd) {
 	auto ctx = (TextureViewer *) handle;
-	if (!ctx)
+	if (!ctx) {
 		return;
+	}
 
 	static_assert(sizeof(UniformBuffer) < UNIFORM_BUFFER_SIZE_PER_FRAME);
 
-	ctx->currentFrame = (ctx->currentFrame + 1) % ctx->maxFrames;
+	ctx->currentFrame = (ctx->currentFrame + 1) % ctx->frameBuffer->frameBufferCount;
 
 	uint64_t const baseUniformOffset = ctx->currentFrame * UNIFORM_BUFFER_SIZE_PER_FRAME;
-	memcpy(ctx->uniforms.scaleOffsetMatrix, ImguiBindings_GetScaleOffsetMatrix(ctx->imgui), sizeof(float) * 16);
+	memcpy(ctx->uniforms.scaleOffsetMatrix,
+				 ImguiBindings_GetScaleOffsetMatrix(ctx->frameBuffer->imguiBindings),
+				 sizeof(float) * 16);
 
 	if ((ctx->colourChannelEnable[0] == false) &&
 			(ctx->colourChannelEnable[1] == false) &&
@@ -543,22 +571,24 @@ void TextureViewer_RenderSetup(TextureViewerHandle handle, TheForge_CmdHandle cm
 	ctx->cmd = cmd;
 }
 
-void TextureViewer_SetWindowName(TextureViewerHandle handle, char const* windowName ) {
+void TextureViewer_SetWindowName(TextureViewerHandle handle, char const *windowName) {
 	auto ctx = (TextureViewer *) handle;
-	if (!ctx)
+	if (!ctx) {
 		return;
+	}
 
 	MEMORY_FREE(ctx->windowName);
-	ctx->windowName = (char*) MEMORY_CALLOC(strlen(windowName)+1,1);
+	ctx->windowName = (char *) MEMORY_CALLOC(strlen(windowName) + 1, 1);
 	memcpy(ctx->windowName, windowName, strlen(windowName));
 
 }
 
-void TextureViewer_SetZoom(TextureViewerHandle handle, float zoom ) {
+void TextureViewer_SetZoom(TextureViewerHandle handle, float zoom) {
 
 	auto ctx = (TextureViewer *) handle;
-	if (!ctx)
+	if (!ctx) {
 		return;
+	}
 
 	ctx->zoom = zoom;
 }
