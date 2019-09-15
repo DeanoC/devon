@@ -74,14 +74,14 @@ static void LoadTextureToView(char const* fileName)
 
 	VFile_Handle fh = VFile_FromFile(fileName, Os_FM_ReadBinary);
 	if (!fh) {
-		LOGINFOF("Load From File failed for %s", fileName);
+		LOGINFO("Load From File failed for %s", fileName);
 		return;
 	}
 
 	textureToView.cpu = Image_Load(fh);
 	VFile_Close(fh);
 	if(!textureToView.cpu) {
-		LOGINFOF("Image_Load failed for %s", fileName);
+		LOGINFO("Image_Load failed for %s", fileName);
 		return;
 	}
 
@@ -108,7 +108,7 @@ static void LoadTextureToView(char const* fileName)
 			Image_ImageHeader const* converted = textureToView.cpu;
 			converted = Image_Decompress(textureToView.cpu);
 			if(converted == nullptr || converted == textureToView.cpu ) {
-				LOGINFOF("%s with format %s isn't supported by this GPU/backend and can't be converted",
+				LOGINFO("%s with format %s isn't supported by this GPU/backend and can't be converted",
 								 fileName,
 								 TinyImageFormat_Name(textureToView.cpu->format));
 				Image_Destroy(textureToView.cpu);
@@ -267,7 +267,6 @@ static bool Init() {
 																			 20,
 																			 FRAMES_AHEAD,
 																			 Display_GetBackBufferFormat(display),
-																			 Display_GetDepthBufferFormat(display),
 																			 TheForge_SC_1,
 																			 0);
 	if (!imguiBindings) {

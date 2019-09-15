@@ -119,7 +119,7 @@ static bool CreateShaders(TextureViewer *ctx) {
 			VFile_GetName(vfile), vertEntryPoint, vfile,
 			&vout);
 	if (vout.log != nullptr) {
-		LOGWARNINGF("Shader compiler : %s %s", vokay ? "warnings" : "ERROR", vout.log);
+		LOGWARNING("Shader compiler : %s %s", vokay ? "warnings" : "ERROR", vout.log);
 	}
 	ShaderCompiler_Output fout;
 	bool fokay = ShaderCompiler_Compile(
@@ -127,7 +127,7 @@ static bool CreateShaders(TextureViewer *ctx) {
 			VFile_GetName(ffile), fragEntryPoint, ffile,
 			&fout);
 	if (fout.log != nullptr) {
-		LOGWARNINGF("Shader compiler : %s %s", fokay ? "warnings" : "ERROR", fout.log);
+		LOGWARNING("Shader compiler : %s %s", fokay ? "warnings" : "ERROR", fout.log);
 	}
 	VFile_Close(vfile);
 	VFile_Close(ffile);
