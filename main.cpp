@@ -233,7 +233,7 @@ static bool Init() {
 
 	Render_FrameBufferDesc fbDesc{};
 	fbDesc.platformHandle = GameAppShell_GetPlatformWindowPtr();
-	fbDesc.queue = Render_RendererGetPrimaryQueue(renderer, Render_GQT_GRAPHICS);
+	fbDesc.queue = graphicsQueue = Render_RendererGetPrimaryQueue(renderer, Render_GQT_GRAPHICS);
 	fbDesc.commandPool = Render_RendererGetPrimaryCommandPool(renderer, Render_GQT_GRAPHICS);
 	fbDesc.frameBufferWidth = windowDesc.width;
 	fbDesc.frameBufferHeight = windowDesc.height;
