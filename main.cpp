@@ -1,5 +1,6 @@
 #include <cstdio> // for sprintf
 #include "al2o3_platform/platform.h"
+#include "al2o3_platform/visualdebug.h"
 #include "al2o3_memory/memory.h"
 #include "al2o3_enki/TaskScheduler_c.h"
 #include "gfx_theforge/theforge.h"
@@ -241,6 +242,7 @@ static bool Init() {
 	fbDesc.colourFormat = TinyImageFormat_UNDEFINED;
 	fbDesc.depthFormat = TinyImageFormat_UNDEFINED;
 	fbDesc.embeddedImgui = true;
+	fbDesc.visualDebugTarget = true;
 	frameBuffer = Render_FrameBufferCreate(renderer, &fbDesc);
 
 	static char const DefaultFolder[] = "";
@@ -299,6 +301,10 @@ static void Draw(double deltaMS) {
 	TextureViewer_RenderSetup(textureViewer, cmd);
 
 	Render_FrameBufferPresent(frameBuffer);
+
+	//	VISDEBUG_LINE( 0,0,0,  10,0,0,  1,1,1,1);
+	AL2O3_VisualDebugging.Line(0, 0, 0, 10, 0, 0, VISDEBUG_PACKCOLOUR(255, 255, 255, 255));
+
 }
 
 static void Unload() {
