@@ -14,7 +14,6 @@
 
 #include "render_basics/theforge/api.h"
 #include "render_basics/api.h"
-#include "render_basics/cmd.h"
 #include "render_basics/view.h"
 #include "render_basics/framebuffer.h"
 
@@ -234,8 +233,8 @@ static bool Init() {
 
 	Render_FrameBufferDesc fbDesc{};
 	fbDesc.platformHandle = GameAppShell_GetPlatformWindowPtr();
-	fbDesc.queue = graphicsQueue = Render_RendererGetPrimaryQueue(renderer, Render_GQT_GRAPHICS);
-	fbDesc.commandPool = Render_RendererGetPrimaryCommandPool(renderer, Render_GQT_GRAPHICS);
+	fbDesc.queue = graphicsQueue = Render_RendererGetPrimaryQueue(renderer, Render_QT_GRAPHICS);
+	fbDesc.commandPool = Render_RendererGetPrimaryCommandPool(renderer, Render_QT_GRAPHICS);
 	fbDesc.frameBufferWidth = windowDesc.width;
 	fbDesc.frameBufferHeight = windowDesc.height;
 	fbDesc.frameBufferCount = 3;
@@ -296,9 +295,9 @@ static void Draw(double deltaMS) {
 
 	Render_RenderTargetHandle renderTargets[2] = {nullptr, nullptr};
 
-	Render_CmdHandle cmd = Render_FrameBufferNewFrame(frameBuffer, renderTargets + 0, renderTargets + 1);
+	Render_FrameBufferNewFrame(frameBuffer);
 
-	TextureViewer_RenderSetup(textureViewer, cmd);
+	TextureViewer_RenderSetup(textureViewer, Render_FrameBufferGraphicsEncoder(frameBuffer));
 
 	Render_FrameBufferPresent(frameBuffer);
 

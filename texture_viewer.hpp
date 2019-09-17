@@ -14,7 +14,7 @@ void TextureViewer_Destroy(TextureViewerHandle handle);
 
 void TextureViewer_DrawUI(TextureViewerHandle handle, ImguiBindings_Texture *texture);
 // must be called before Imguibinding render. Sets up things for the callbacks from imgui
-void TextureViewer_RenderSetup(TextureViewerHandle handle, Render_CmdHandle cmd);
+void TextureViewer_RenderSetup(TextureViewerHandle handle, Render_GraphicsEncoderHandle encoder);
 
 void TextureViewer_SetWindowName(TextureViewerHandle handle, char const *windowName);
 void TextureViewer_SetZoom(TextureViewerHandle handle, float zoom);
