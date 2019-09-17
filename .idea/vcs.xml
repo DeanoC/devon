@@ -33,6 +33,8 @@
     <mapping directory="$PROJECT_DIR$/../al2o3/lua_al2o3_os-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../al2o3/lua_base5.3-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../al2o3/lua_image-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../al2o3/render_basics_impl_theforge-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../al2o3/render_basics_interface-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../al2o3/tiny_dds-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../al2o3/tiny_imageformat-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../al2o3/tiny_ktx-src" vcs="Git" />
