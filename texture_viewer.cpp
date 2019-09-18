@@ -188,7 +188,6 @@ TextureViewerHandle TextureViewer_Create(Render_RendererHandle renderer,
 		return nullptr;
 	}
 
-
 	TheForge_ShaderHandle shaders[]{ctx->shader};
 	TheForge_SamplerHandle samplers[]{
 			Render_GetStockSampler(renderer, Render_SST_POINT),
@@ -443,22 +442,23 @@ void TextureViewer_RenderSetup(TextureViewerHandle handle, Render_GraphicsEncode
 				 ImguiBindings_GetScaleOffsetMatrix(ctx->frameBuffer->imguiBindings),
 				 sizeof(float) * 16);
 
-	if (!ctx->colourChannelEnable[0] &&
-			!ctx->colourChannelEnable[1] &&
-			!ctx->colourChannelEnable[2] &&
+	ctx->uniforms.colourMask[0] = ctx->colourChannelEnable[0] ? 1.0f : 0.0f;
+	ctx->uniforms.colourMask[1] = ctx->colourChannelEnable[1] ? 1.0f : 0.0f;
+	ctx->uniforms.colourMask[2] = ctx->colourChannelEnable[2] ? 1.0f : 0.0f;
+	ctx->uniforms.colourMask[3] = ctx->colourChannelEnable[3] ? 1.0f : 0.0f;
+
+	if ((!ctx->colourChannelEnable[0]) &&
+			(!ctx->colourChannelEnable[1]) &&
+			(!ctx->colourChannelEnable[2]) &&
 			ctx->colourChannelEnable[3]) {
 		ctx->uniforms.alphaReplicate = 1.0f;
 	} else {
 		ctx->uniforms.alphaReplicate = 0.0f;
-		ctx->uniforms.colourMask[0] = ctx->colourChannelEnable[0] ? 1.0f : 0.0f;
-		ctx->uniforms.colourMask[1] = ctx->colourChannelEnable[1] ? 1.0f : 0.0f;
-		ctx->uniforms.colourMask[2] = ctx->colourChannelEnable[2] ? 1.0f : 0.0f;
-		ctx->uniforms.colourMask[3] = ctx->colourChannelEnable[3] ? 1.0f : 0.0f;
 	}
 
 	Render_BufferUpdateDesc uniformUpdate = {
 			&ctx->uniforms,
-			0,
+			baseUniformOffset,
 			UNIFORM_BUFFER_SIZE_PER_FRAME
 	};
 	Render_BufferUpload(ctx->uniformBuffer, &uniformUpdate);
