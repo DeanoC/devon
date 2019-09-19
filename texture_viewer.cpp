@@ -113,60 +113,35 @@ bool CreateShaders(TextureViewer *ctx) {
 		VFile_Close(vfile);
 		return false;
 	}
-	ShaderCompiler_Output vout;
-	bool vokay = ShaderCompiler_Compile(
-			ctx->renderer->shaderCompiler, ShaderCompiler_ST_VertexShader,
-			VFile_GetName(vfile), vertEntryPoint, vfile,
-			&vout);
-	if (vout.log != nullptr) {
-		LOGWARNING("Shader compiler : %s %s", vokay ? "warnings" : "ERROR", vout.log);
-	}
-	ShaderCompiler_Output fout;
-	bool fokay = ShaderCompiler_Compile(
-			ctx->renderer->shaderCompiler, ShaderCompiler_ST_FragmentShader,
-			VFile_GetName(ffile), fragEntryPoint, ffile,
-			&fout);
-	if (fout.log != nullptr) {
-		LOGWARNING("Shader compiler : %s %s", fokay ? "warnings" : "ERROR", fout.log);
-	}
+	Render_ShaderObjectDesc vsod = {
+			Render_ST_VERTEXSHADER,
+			vfile,
+			vertEntryPoint
+	};
+	Render_ShaderObjectDesc fsod = {
+			Render_ST_FRAGMENTSHADER,
+			ffile,
+			fragEntryPoint
+	};
+
+	Render_ShaderObjectHandle shaderObjects[2]{};
+	shaderObjects[0] = Render_ShaderObjectCreate(ctx->renderer, &vsod);
+	shaderObjects[1] = Render_ShaderObjectCreate(ctx->renderer, &fsod);
+
 	VFile_Close(vfile);
 	VFile_Close(ffile);
 
-	if (!vokay || !fokay) {
-		MEMORY_FREE((void *) vout.log);
-		MEMORY_FREE((void *) vout.shader);
-		MEMORY_FREE((void *) fout.log);
-		MEMORY_FREE((void *) fout.shader);
+	if (!shaderObjects[0] || !shaderObjects[1]) {
+		Render_ShaderObjectDestroy(ctx->renderer, shaderObjects[0]);
+		Render_ShaderObjectDestroy(ctx->renderer, shaderObjects[1]);
 		return false;
 	}
 
-#if AL2O3_PLATFORM == AL2O3_PLATFORM_APPLE_MAC
-	TheForge_ShaderDesc sdesc;
-	sdesc.stages = (TheForge_ShaderStage) (TheForge_SS_FRAG | TheForge_SS_VERT);
-	sdesc.vert.name = "ImguiBindings_VertexShader";
-	sdesc.vert.code = (char *) vout.shader;
-	sdesc.vert.entryPoint = vertEntryPoint;
-	sdesc.vert.macroCount = 0;
-	sdesc.frag.name = "ImguiBindings_FragmentShader";
-	sdesc.frag.code = (char *) fout.shader;
-	sdesc.frag.entryPoint = fragEntryPoint;
-	sdesc.frag.macroCount = 0;
-	TheForge_AddShader(ctx->renderer->renderer, &sdesc, &ctx->shader);
-#else
-	TheForge_BinaryShaderDesc bdesc;
-	bdesc.stages = (TheForge_ShaderStage) (TheForge_SS_FRAG | TheForge_SS_VERT);
-	bdesc.vert.byteCode = (char *) vout.shader;
-	bdesc.vert.byteCodeSize = (uint32_t) vout.shaderSize;
-	bdesc.vert.entryPoint = vertEntryPoint;
-	bdesc.frag.byteCode = (char *) fout.shader;
-	bdesc.frag.byteCodeSize = (uint32_t) fout.shaderSize;
-	bdesc.frag.entryPoint = fragEntryPoint;
-	TheForge_AddShaderBinary(ctx->renderer->renderer, &bdesc, &ctx->shader);
-#endif
-	MEMORY_FREE((void *) vout.log);
-	MEMORY_FREE((void *) vout.shader);
-	MEMORY_FREE((void *) fout.log);
-	MEMORY_FREE((void *) fout.shader);
+	ctx->shader = Render_ShaderCreate(ctx->renderer, 2, shaderObjects);
+
+	Render_ShaderObjectDestroy(ctx->renderer, shaderObjects[0]);
+	Render_ShaderObjectDestroy(ctx->renderer, shaderObjects[1]);
+
 	return true;
 }
 
@@ -293,7 +268,7 @@ void TextureViewer_Destroy(TextureViewerHandle handle) {
 		TheForge_RemoveRootSignature(ctx->renderer->renderer, ctx->rootSignature);
 	}
 	if (ctx->shader) {
-		TheForge_RemoveShader(ctx->renderer->renderer, ctx->shader);
+		Render_ShaderDestroy(ctx->renderer, ctx->shader);
 	}
 
 	MEMORY_FREE(ctx);
