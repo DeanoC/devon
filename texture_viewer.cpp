@@ -9,6 +9,7 @@
 #include "render_basics/buffer.h"
 #include "render_basics/view.h"
 #include "render_basics/framebuffer.h"
+#include "render_basics/graphicsencoder.h"
 
 #include "texture_viewer.hpp"
 
@@ -42,7 +43,6 @@ struct TextureViewer {
 	bool colourChannelEnable[4];
 	float zoom;
 
-	uint32_t currentFrame;
 	Render_GraphicsEncoderHandle currentEncoder;
 
 	char *windowName;
@@ -213,7 +213,7 @@ TextureViewerHandle TextureViewer_Create(Render_RendererHandle renderer,
 	gfxPipeDesc.shaderProgram = ctx->shader;
 	gfxPipeDesc.rootSignature = ctx->rootSignature;
 	gfxPipeDesc.pVertexLayout = Render_GetStockVertexLayout(renderer, Render_SVL_2D_COLOUR_UV);
-	gfxPipeDesc.blendState = Render_GetStockBlendState(renderer, Render_SBS_PORTER_DUFF);
+	gfxPipeDesc.blendState = Render_GetStockBlendState(renderer, Render_SBS_OPAQUE);
 	gfxPipeDesc.depthState = Render_GetStockDepthState(renderer, Render_SDS_IGNORE);
 	gfxPipeDesc.rasterizerState = Render_GetStockRasterisationState(renderer, Render_SRS_NOCULL);
 	gfxPipeDesc.renderTargetCount = 1;
@@ -315,40 +315,40 @@ static void ImCallback(ImDrawList const *list, ImDrawCmd const *imcmd) {
 
 	TheForge_CmdBindPipeline(ctx->currentEncoder->cmd, ctx->pipeline);
 
-	uint64_t const baseUniformOffset = ctx->currentFrame * UNIFORM_BUFFER_SIZE_PER_FRAME;
+	Render_DescriptorDesc params[3]{};
+	params[0].name = "uniformBlock";
+	params[0].type = Render_DT_BUFFER;
+	params[0].offset = 0;
+	params[0].size = UNIFORM_BUFFER_SIZE_PER_FRAME;
+	params[0].buffer = ctx->uniformBuffer;
 
-	TheForge_DescriptorData params[3]{};
-	params[0].pName = "uniformBlock";
-	params[0].pBuffers = &ctx->uniformBuffer->buffer;
-	params[0].pOffsets = &baseUniformOffset;
-	params[0].count = 1;
+	params[1].name = "colourTexture";
+	params[1].type = Render_DT_TEXTURE;
+	params[2].name = "colourTextureArray";
+	params[2].type = Render_DT_TEXTURE;
+
+	params[2].type = Render_DT_TEXTURE;
 	if (Image_IsArray(texture->cpu)) {
-		params[1].pName = "colourTexture";
-		params[1].pTextures = &ctx->dummy2DTexture;
-		params[1].count = 1;
-		params[2].pName = "colourTextureArray";
-		params[2].pTextures = &(texture->gpu);
-		params[2].count = 1;
+		params[1].texture = ctx->dummy2DTexture;
+		params[2].texture = texture->gpu;
 	} else {
-		params[1].pName = "colourTexture";
-		params[1].pTextures = &(texture->gpu);
-		params[1].count = 1;
-		params[2].pName = "colourTextureArray";
-		params[2].pTextures = &ctx->dummy2DArrayTexture;
-		params[2].count = 1;
+		params[1].texture = texture->gpu;
+		params[2].texture = ctx->dummy2DArrayTexture;
 	}
-	TheForge_CmdBindDescriptors(ctx->currentEncoder->cmd, ctx->descriptorBinder, ctx->rootSignature, 3, params);
+	Render_GraphicsEncoderBindDescriptors(ctx->currentEncoder, ctx->descriptorBinder, ctx->rootSignature, 3, params);
 
 	float const clipX = imcmd->ClipRect.x * drawData->FramebufferScale.x;
 	float const clipY = imcmd->ClipRect.y * drawData->FramebufferScale.y;
 	float const clipZ = imcmd->ClipRect.z * drawData->FramebufferScale.x;
 	float const clipW = imcmd->ClipRect.w * drawData->FramebufferScale.y;
 
-	TheForge_CmdSetScissor(ctx->currentEncoder->cmd,
-												 (uint32_t) (clipX - displayPos.x),
-												 (uint32_t) (clipY - displayPos.y),
-												 (uint32_t) (clipZ - clipX),
-												 (uint32_t) (clipW - clipY));
+	Render_GraphicsEncoderSetScissor(ctx->currentEncoder,
+																	 {
+																			 (uint32_t) (clipX - displayPos.x),
+																			 (uint32_t) (clipY - displayPos.y),
+																			 (uint32_t) (clipZ - clipX),
+																			 (uint32_t) (clipW - clipY)
+																	 });
 
 	TheForge_CmdDrawIndexed(ctx->currentEncoder->cmd, 6, imcmd->IdxOffset, imcmd->VtxOffset);
 }
@@ -435,9 +435,6 @@ void TextureViewer_RenderSetup(TextureViewerHandle handle, Render_GraphicsEncode
 
 	static_assert(sizeof(UniformBuffer) < UNIFORM_BUFFER_SIZE_PER_FRAME);
 
-	ctx->currentFrame = (ctx->currentFrame + 1) % ctx->frameBuffer->frameBufferCount;
-
-	uint64_t const baseUniformOffset = ctx->currentFrame * UNIFORM_BUFFER_SIZE_PER_FRAME;
 	memcpy(ctx->uniforms.scaleOffsetMatrix,
 				 ImguiBindings_GetScaleOffsetMatrix(ctx->frameBuffer->imguiBindings),
 				 sizeof(float) * 16);
@@ -458,7 +455,7 @@ void TextureViewer_RenderSetup(TextureViewerHandle handle, Render_GraphicsEncode
 
 	Render_BufferUpdateDesc uniformUpdate = {
 			&ctx->uniforms,
-			baseUniformOffset,
+			0,
 			UNIFORM_BUFFER_SIZE_PER_FRAME
 	};
 	Render_BufferUpload(ctx->uniformBuffer, &uniformUpdate);
