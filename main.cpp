@@ -40,7 +40,7 @@ enum AppKey {
 };
 
 TextureViewerHandle textureViewer;
-ImguiBindings_Texture textureToView;
+TextureViewer_Texture textureToView;
 char* lastFolder;
 
 static void* EnkiAlloc(void* userData, size_t size) {

@@ -1,15 +1,19 @@
 #include "al2o3_platform/platform.h"
 #include "al2o3_memory/memory.h"
+#include "gfx_image/image.h"
 #include "gfx_imgui/imgui.h"
 #include "gfx_imgui/imgui_internal.h"
 #include "al2o3_cadt/vector.h"
 
-#include "render_basics/theforge/api.h"
 #include "render_basics/api.h"
 #include "render_basics/buffer.h"
 #include "render_basics/view.h"
 #include "render_basics/framebuffer.h"
 #include "render_basics/graphicsencoder.h"
+#include "render_basics/rootsignature.h"
+#include "render_basics/pipeline.h"
+#include "render_basics/shader.h"
+#include "render_basics/texture.h"
 
 #include "texture_viewer.hpp"
 
@@ -29,10 +33,10 @@ struct TextureViewer {
 	Render_RendererHandle renderer;
 	Render_FrameBufferHandle frameBuffer;
 
-	TheForge_ShaderHandle shader;
-	TheForge_RootSignatureHandle rootSignature;
-	TheForge_PipelineHandle pipeline;
-	TheForge_DescriptorBinderHandle descriptorBinder;
+	Render_ShaderHandle shader;
+	Render_RootSignatureHandle rootSignature;
+	Render_GraphicsPipelineHandle pipeline;
+	Render_DescriptorBinderHandle descriptorBinder;
 	Render_BufferHandle uniformBuffer;
 
 	Render_TextureHandle dummy2DTexture;
@@ -67,36 +71,28 @@ static uint32_t const DummyData[] = {
 		0xFF0080FF, 0xFF0080FF, 0xFF0080FF, 0xFF0080FF};
 
 static void CreateDummyTextures(TextureViewer *ctx) {
-	TheForge_RawImageData const raw2DImageData{
-			(unsigned char *) DummyData,
-			TinyImageFormat_R8G8B8A8_UNORM, 4, 4, 1, 1, 1,
-			true
+	Render_TextureCreateDesc const raw2DImageData{
+			TinyImageFormat_R8G8B8A8_UNORM,
+			Render_TUF_SHADER_READ,
+			4, 4, 1, 1, 1, 0, 0,
+			DummyData
 	};
-	TheForge_RawImageData const raw2DArrayImageData{
-			(unsigned char *) DummyData,
-			TinyImageFormat_R8G8B8A8_UNORM, 4, 4, 1, 3, 1,
-			true
+	Render_TextureCreateDesc const raw2DArrayImageData{
+			TinyImageFormat_R8G8B8A8_UNORM,
+			Render_TUF_SHADER_READ,
+			4, 4, 1, 3, 1, 0, 0,
+			DummyData
 	};
-	TheForge_RawImageData const raw3DImageData{
-			(unsigned char *) DummyData,
-			TinyImageFormat_R8G8B8A8_UNORM, 4, 4, 3, 1, 1,
-			true
+	Render_TextureCreateDesc const raw3DImageData{
+			TinyImageFormat_R8G8B8A8_UNORM,
+			Render_TUF_SHADER_READ,
+			4, 4, 3, 1, 1, 0, 0,
+			DummyData
 	};
 
-	TheForge_TextureLoadDesc loadDesc{};
-	loadDesc.pRawImageData = &raw2DImageData;
-	loadDesc.pTexture = &ctx->dummy2DTexture;
-	loadDesc.mCreationFlag = TheForge_TCF_NONE;
-	TheForge_LoadTexture(&loadDesc, false);
-	loadDesc.pRawImageData = &raw2DArrayImageData;
-	loadDesc.pTexture = &ctx->dummy2DArrayTexture;
-	loadDesc.mCreationFlag = TheForge_TCF_NONE;
-	TheForge_LoadTexture(&loadDesc, false);
-	loadDesc.pRawImageData = &raw3DImageData;
-	loadDesc.pTexture = &ctx->dummy3DTexture;
-	loadDesc.mCreationFlag = TheForge_TCF_NONE;
-	TheForge_LoadTexture(&loadDesc, false);
-
+	ctx->dummy2DTexture = Render_TextureSyncCreate(ctx->renderer, &raw2DImageData);
+	ctx->dummy2DArrayTexture = Render_TextureSyncCreate(ctx->renderer, &raw2DArrayImageData);
+	ctx->dummy3DTexture = Render_TextureSyncCreate(ctx->renderer, &raw3DImageData);
 }
 
 bool CreateShaders(TextureViewer *ctx) {
@@ -163,50 +159,49 @@ TextureViewerHandle TextureViewer_Create(Render_RendererHandle renderer,
 		return nullptr;
 	}
 
-	TheForge_ShaderHandle shaders[]{ctx->shader};
-	TheForge_SamplerHandle samplers[]{
+	Render_ShaderHandle shaders[]{ctx->shader};
+	Render_SamplerHandle samplers[]{
 			Render_GetStockSampler(renderer, Render_SST_POINT),
 			Render_GetStockSampler(renderer, Render_SST_LINEAR),
 	};
 
 	char const *staticSamplerNames[]{"pointSampler", "bilinearSampler"};
-	TheForge_RootSignatureDesc rootSignatureDesc{};
+	Render_RootSignatureDesc rootSignatureDesc{};
 	rootSignatureDesc.shaderCount = 1;
-	rootSignatureDesc.pShaders = shaders;
+	rootSignatureDesc.shaders = shaders;
 	rootSignatureDesc.staticSamplerCount = 2;
-	rootSignatureDesc.pStaticSamplerNames = staticSamplerNames;
-	rootSignatureDesc.pStaticSamplers = samplers;
-	TheForge_AddRootSignature(ctx->renderer->renderer, &rootSignatureDesc, &ctx->rootSignature);
+	rootSignatureDesc.staticSamplerNames = staticSamplerNames;
+	rootSignatureDesc.staticSamplers = samplers;
+	ctx->rootSignature = Render_RootSignatureCreate(ctx->renderer, &rootSignatureDesc);
 	if (!ctx->rootSignature) {
 		return nullptr;
 	}
 
-	TheForge_PipelineDesc pipelineDesc{};
+	Render_GraphicsPipelineDesc gfxPipeDesc{};
+
 	TinyImageFormat colourFormats[] = {Render_FrameBufferColourFormat(frameBuffer)};
-	pipelineDesc.type = TheForge_PT_GRAPHICS;
-	TheForge_GraphicsPipelineDesc &gfxPipeDesc = pipelineDesc.graphicsDesc;
-	gfxPipeDesc.shaderProgram = ctx->shader;
+	gfxPipeDesc.shader = ctx->shader;
 	gfxPipeDesc.rootSignature = ctx->rootSignature;
-	gfxPipeDesc.pVertexLayout = Render_GetStockVertexLayout(renderer, Render_SVL_2D_COLOUR_UV);
+	gfxPipeDesc.vertexLayout = Render_GetStockVertexLayout(renderer, Render_SVL_2D_COLOUR_UV);
 	gfxPipeDesc.blendState = Render_GetStockBlendState(renderer, Render_SBS_OPAQUE);
 	gfxPipeDesc.depthState = Render_GetStockDepthState(renderer, Render_SDS_IGNORE);
-	gfxPipeDesc.rasterizerState = Render_GetStockRasterisationState(renderer, Render_SRS_NOCULL);
-	gfxPipeDesc.renderTargetCount = 1;
-	gfxPipeDesc.pColorFormats = colourFormats;
+	gfxPipeDesc.rasteriserState = Render_GetStockRasterisationState(renderer, Render_SRS_NOCULL);
+	gfxPipeDesc.colourRenderTargetCount = 1;
+	gfxPipeDesc.colourFormats = colourFormats;
 	gfxPipeDesc.depthStencilFormat = TinyImageFormat_UNDEFINED;
-	gfxPipeDesc.sampleCount = TheForge_SC_1;
+	gfxPipeDesc.sampleCount = 1;
 	gfxPipeDesc.sampleQuality = 0;
-	gfxPipeDesc.primitiveTopo = TheForge_PT_TRI_LIST;
-	TheForge_AddPipeline(ctx->renderer->renderer, &pipelineDesc, &ctx->pipeline);
+	gfxPipeDesc.primitiveTopo = Render_PT_TRI_LIST;
+	ctx->pipeline = Render_GraphicsPipelineCreate(ctx->renderer, &gfxPipeDesc);
 	if (!ctx->pipeline) {
 		return nullptr;
 	}
 
-	TheForge_DescriptorBinderDesc descriptorBinderDesc[] = {
+	Render_DescriptorBinderDesc descriptorBinderDesc[] = {
 			{ctx->rootSignature, 20},
 			{ctx->rootSignature, 20},
 	};
-	TheForge_AddDescriptorBinder(ctx->renderer->renderer, 0, 2, descriptorBinderDesc, &ctx->descriptorBinder);
+	ctx->descriptorBinder = Render_DescriptorBinderCreate(ctx->renderer, 2, descriptorBinderDesc);
 	if (!ctx->descriptorBinder) {
 		return nullptr;
 	}
@@ -246,26 +241,26 @@ void TextureViewer_Destroy(TextureViewerHandle handle) {
 	MEMORY_FREE(ctx->windowName);
 
 	if (ctx->dummy3DTexture) {
-		TheForge_RemoveTexture(ctx->renderer->renderer, ctx->dummy3DTexture);
+		Render_TextureDestroy(ctx->renderer, ctx->dummy3DTexture);
 	}
 	if (ctx->dummy2DArrayTexture) {
-		TheForge_RemoveTexture(ctx->renderer->renderer, ctx->dummy2DArrayTexture);
+		Render_TextureDestroy(ctx->renderer, ctx->dummy2DArrayTexture);
 	}
 	if (ctx->dummy2DTexture) {
-		TheForge_RemoveTexture(ctx->renderer->renderer, ctx->dummy2DTexture);
+		Render_TextureDestroy(ctx->renderer, ctx->dummy2DTexture);
 	}
 
 	if (ctx->uniformBuffer) {
 		Render_BufferDestroy(ctx->renderer, ctx->uniformBuffer);
 	}
 	if (ctx->descriptorBinder) {
-		TheForge_RemoveDescriptorBinder(ctx->renderer->renderer, ctx->descriptorBinder);
+		Render_DescriptorBinderDestroy(ctx->renderer, ctx->descriptorBinder);
 	}
 	if (ctx->pipeline) {
-		TheForge_RemovePipeline(ctx->renderer->renderer, ctx->pipeline);
+		Render_GraphicsPipelineDestroy(ctx->renderer, ctx->pipeline);
 	}
 	if (ctx->rootSignature) {
-		TheForge_RemoveRootSignature(ctx->renderer->renderer, ctx->rootSignature);
+		Render_RootSignatureDestroy(ctx->renderer, ctx->rootSignature);
 	}
 	if (ctx->shader) {
 		Render_ShaderDestroy(ctx->renderer, ctx->shader);
@@ -281,14 +276,14 @@ static void ImCallback(ImDrawList const *list, ImDrawCmd const *imcmd) {
 
 	auto ctx = (TextureViewer *) imcmd->UserCallbackData;
 
-	ImguiBindings_Texture const *texture = (ImguiBindings_Texture *) imcmd->TextureId;
+	TextureViewer_Texture const *texture = (TextureViewer_Texture *) imcmd->TextureId;
 
 	ImDrawData *drawData = ImGui::GetDrawData();
 	ImVec2 displayPos = drawData->DisplayPos;
 	displayPos.x *= drawData->FramebufferScale.x;
 	displayPos.y *= drawData->FramebufferScale.y;
 
-	TheForge_CmdBindPipeline(ctx->currentEncoder->cmd, ctx->pipeline);
+	Render_GraphicsEncoderBindPipeline(ctx->currentEncoder, ctx->pipeline);
 
 	Render_DescriptorDesc params[3]{};
 	params[0].name = "uniformBlock";
@@ -325,10 +320,10 @@ static void ImCallback(ImDrawList const *list, ImDrawCmd const *imcmd) {
 																			 (uint32_t) (clipW - clipY)
 																	 });
 
-	TheForge_CmdDrawIndexed(ctx->currentEncoder->cmd, 6, imcmd->IdxOffset, imcmd->VtxOffset);
+	Render_GraphicsEncoderDrawIndexed(ctx->currentEncoder, 6, imcmd->IdxOffset, imcmd->VtxOffset);
 }
 
-void TextureViewer_DrawUI(TextureViewerHandle handle, ImguiBindings_Texture *texture) {
+void TextureViewer_DrawUI(TextureViewerHandle handle, TextureViewer_Texture *texture) {
 	auto ctx = (TextureViewer *) handle;
 	if (!ctx) {
 		return;
@@ -411,7 +406,7 @@ void TextureViewer_RenderSetup(TextureViewerHandle handle, Render_GraphicsEncode
 	static_assert(sizeof(UniformBuffer) < UNIFORM_BUFFER_SIZE_PER_FRAME);
 
 	memcpy(ctx->uniforms.scaleOffsetMatrix,
-				 ImguiBindings_GetScaleOffsetMatrix(ctx->frameBuffer->imguiBindings),
+				 Render_FrameBufferImguiScaleOffsetMatrix(ctx->frameBuffer),
 				 sizeof(float) * 16);
 
 	ctx->uniforms.colourMask[0] = ctx->colourChannelEnable[0] ? 1.0f : 0.0f;

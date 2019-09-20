@@ -3,16 +3,19 @@
 #define DEVON_TEXTURE_VIEWER_HPP
 
 #include "render_basics/api.h"
-#include "gfx_theforge/theforge.h"
-#include "gfx_imgui_al2o3_theforge_bindings/bindings.h"
-
 typedef struct TextureViewer *TextureViewerHandle;
+struct Image_ImageHeader;
+
+typedef struct TextureViewer_Texture {
+	Image_ImageHeader const *cpu;
+	Render_TextureHandle gpu;
+} TextureViewer_Texture;
 
 TextureViewerHandle TextureViewer_Create(Render_RendererHandle renderer,
 																				 Render_FrameBufferHandle frameBuffer);
 void TextureViewer_Destroy(TextureViewerHandle handle);
 
-void TextureViewer_DrawUI(TextureViewerHandle handle, ImguiBindings_Texture *texture);
+void TextureViewer_DrawUI(TextureViewerHandle handle, TextureViewer_Texture *texture);
 // must be called before Imguibinding render. Sets up things for the callbacks from imgui
 void TextureViewer_RenderSetup(TextureViewerHandle handle, Render_GraphicsEncoderHandle encoder);
 
