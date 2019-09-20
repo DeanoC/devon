@@ -140,7 +140,6 @@ static void LoadTextureToView(char const* fileName)
 	TextureViewer_SetWindowName(textureViewer, tmpbuffer);
 	TextureViewer_SetZoom(textureViewer, 768.0f / textureToView.cpu->width);
 
-	// use extended format
 	TheForge_RawImageData rawImageData{
 			(unsigned char *) Image_RawDataPtr(textureToView.cpu),
 			textureToView.cpu->format,
