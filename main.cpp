@@ -3,26 +3,24 @@
 #include "al2o3_platform/visualdebug.h"
 #include "al2o3_memory/memory.h"
 #include "al2o3_enki/TaskScheduler_c.h"
-#include "gfx_theforge/theforge.h"
 #include "gfx_imageio/io.h"
 #include "gfx_image/utils.h"
+#include "gfx_imagedecompress/imagedecompress.h"
 #include "utils_gameappshell/gameappshell.h"
 #include "utils_simple_logmanager/logmanager.h"
 #include "al2o3_vfile/vfile.h"
 #include "al2o3_os/filesystem.h"
 #include "input_basic/input.h"
 
-#include "render_basics/theforge/api.h"
 #include "render_basics/api.h"
 #include "render_basics/view.h"
 #include "render_basics/framebuffer.h"
+#include "render_basics/texture.h"
 
-#include "gfx_imgui_al2o3_theforge_bindings/bindings.h"
 #include "gfx_imgui/imgui.h"
 #include "utils_nativefiledialogs/dialogs.h"
 
 #include "texture_viewer.hpp"
-#include "gfx_imagedecompress/imagedecompress.h"
 
 Render_RendererHandle renderer;
 Render_QueueHandle graphicsQueue;
@@ -57,7 +55,7 @@ static void LoadTextureToView(char const* fileName)
 		textureToView.cpu = nullptr;
 	}
 	if(textureToView.gpu != nullptr) {
-		TheForge_RemoveTexture(renderer->renderer, textureToView.gpu);
+		Render_TextureDestroy(renderer, textureToView.gpu);
 		textureToView.gpu = nullptr;
 	}
 
@@ -79,22 +77,22 @@ static void LoadTextureToView(char const* fileName)
 
 	textureToView.cpu = Image_Load(fh);
 	VFile_Close(fh);
-	if(!textureToView.cpu) {
+	if (!textureToView.cpu) {
 		LOGINFO("Image_Load failed for %s", fileName);
 		return;
 	}
 
 	TinyImageFormat originalFormat = textureToView.cpu->format;
-	bool supported = TheForge_CanShaderReadFrom(renderer->renderer, textureToView.cpu->format);
+	bool supported = Render_RendererCanShaderReadFrom(renderer, textureToView.cpu->format);
 
 	// force CPU for testing
 	// supported = false;
 
-	if(!supported) {
+	if (!supported) {
 		// convert to R8G8B8A8 for now
 		if (!TinyImageFormat_IsCompressed(textureToView.cpu->format)) {
-			Image_ImageHeader const* converted = textureToView.cpu;
-			if(TinyImageFormat_IsSigned(textureToView.cpu->format)) {
+			Image_ImageHeader const *converted = textureToView.cpu;
+			if (TinyImageFormat_IsSigned(textureToView.cpu->format)) {
 				converted = Image_FastConvert(textureToView.cpu, TinyImageFormat_R8G8B8A8_SNORM, true);
 			} else {
 				converted = Image_FastConvert(textureToView.cpu, TinyImageFormat_R8G8B8A8_UNORM, true);
@@ -131,31 +129,30 @@ static void LoadTextureToView(char const* fileName)
 
 	char tmpbuffer[2048];
 	sprintf(tmpbuffer, "%s - %ix%i - %s - %s", fileName + startOfFileName,
-			textureToView.cpu->width,
-			textureToView.cpu->height,
-			TinyImageFormat_Name(originalFormat),
-			supported ? "GPU" : "CPU"
-			);
+					textureToView.cpu->width,
+					textureToView.cpu->height,
+					TinyImageFormat_Name(originalFormat),
+					supported ? "GPU" : "CPU"
+	);
 
 	TextureViewer_SetWindowName(textureViewer, tmpbuffer);
 	TextureViewer_SetZoom(textureViewer, 768.0f / textureToView.cpu->width);
 
-	TheForge_RawImageData rawImageData{
-			(unsigned char *) Image_RawDataPtr(textureToView.cpu),
+	Render_TextureCreateDesc createGPUDesc{
 			textureToView.cpu->format,
+			Render_TUF_SHADER_READ,
 			textureToView.cpu->width,
 			textureToView.cpu->height,
 			textureToView.cpu->depth,
 			textureToView.cpu->slices,
-			(uint32_t) Image_LinkedImageCountOf(textureToView.cpu),
-			true
+			(uint32_t) Image_MipMapCountOf(textureToView.cpu),
+			0,
+			0,
+			(unsigned char *) Image_RawDataPtr(textureToView.cpu),
+			fileName + startOfFileName,
 	};
 
-	TheForge_TextureLoadDesc loadDesc{};
-	loadDesc.pRawImageData = &rawImageData;
-	loadDesc.pTexture = &textureToView.gpu;
-	loadDesc.mCreationFlag = TheForge_TCF_OWN_MEMORY_BIT;
-	TheForge_LoadTexture(&loadDesc, false);
+	textureToView.gpu = Render_TextureSyncCreate(renderer, &createGPUDesc);
 
 }
 
@@ -308,7 +305,7 @@ static void Draw(double deltaMS) {
 static void Unload() {
 	LOGINFO("Unloading");
 
-	TheForge_WaitQueueIdle(graphicsQueue);
+	Render_QueueWaitIdle(graphicsQueue);
 }
 
 static void Exit() {
@@ -323,7 +320,7 @@ static void Exit() {
 		textureToView.cpu = nullptr;
 	}
 	if(textureToView.gpu) {
-		TheForge_RemoveTexture(renderer->renderer, textureToView.gpu);
+		Render_TextureDestroy(renderer, textureToView.gpu);
 		textureToView.gpu = nullptr;
 	}
 
