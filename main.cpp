@@ -24,7 +24,6 @@
 
 Render_RendererHandle renderer;
 Render_QueueHandle graphicsQueue;
-Render_CmdPoolHandle cmdPool;
 Render_FrameBufferHandle frameBuffer;
 
 InputBasic_ContextHandle input;
