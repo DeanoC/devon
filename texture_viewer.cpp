@@ -7,13 +7,14 @@
 
 #include "render_basics/api.h"
 #include "render_basics/buffer.h"
-#include "render_basics/view.h"
+#include "render_basics/descriptorset.h"
 #include "render_basics/framebuffer.h"
 #include "render_basics/graphicsencoder.h"
 #include "render_basics/rootsignature.h"
 #include "render_basics/pipeline.h"
 #include "render_basics/shader.h"
 #include "render_basics/texture.h"
+#include "render_basics/view.h"
 
 #include "texture_viewer.hpp"
 
@@ -36,7 +37,8 @@ struct TextureViewer {
 	Render_ShaderHandle shader;
 	Render_RootSignatureHandle rootSignature;
 	Render_GraphicsPipelineHandle pipeline;
-	Render_DescriptorBinderHandle descriptorBinder;
+	Render_DescriptorSetHandle descriptorSetTexture;
+	Render_DescriptorSetHandle descriptorSetUniform;
 	Render_BufferHandle uniformBuffer;
 
 	Render_TextureHandle dummy2DTexture;
@@ -197,12 +199,24 @@ TextureViewerHandle TextureViewer_Create(Render_RendererHandle renderer,
 		return nullptr;
 	}
 
-	Render_DescriptorBinderDesc descriptorBinderDesc[] = {
-			{ctx->rootSignature, 20},
-			{ctx->rootSignature, 20},
+	Render_DescriptorSetDesc const setDescTexture = {
+			ctx->rootSignature,
+			Render_DUF_PER_FRAME,
+			1
 	};
-	ctx->descriptorBinder = Render_DescriptorBinderCreate(ctx->renderer, 2, descriptorBinderDesc);
-	if (!ctx->descriptorBinder) {
+
+	ctx->descriptorSetTexture = Render_DescriptorSetCreate(ctx->renderer, &setDescTexture);
+	if (!ctx->descriptorSetTexture) {
+		return nullptr;
+	}
+
+	Render_DescriptorSetDesc const setDescUniform = {
+			ctx->rootSignature,
+			Render_DUF_NEVER,
+			1
+	};
+	ctx->descriptorSetUniform = Render_DescriptorSetCreate(ctx->renderer, &setDescTexture);
+	if (!ctx->descriptorSetUniform) {
 		return nullptr;
 	}
 
@@ -253,9 +267,13 @@ void TextureViewer_Destroy(TextureViewerHandle handle) {
 	if (ctx->uniformBuffer) {
 		Render_BufferDestroy(ctx->renderer, ctx->uniformBuffer);
 	}
-	if (ctx->descriptorBinder) {
-		Render_DescriptorBinderDestroy(ctx->renderer, ctx->descriptorBinder);
+	if (ctx->descriptorSetTexture) {
+		Render_DescriptorSetDestroy(ctx->renderer, ctx->descriptorSetTexture);
 	}
+	if (ctx->descriptorSetUniform) {
+		Render_DescriptorSetDestroy(ctx->renderer, ctx->descriptorSetUniform);
+	}
+
 	if (ctx->pipeline) {
 		Render_GraphicsPipelineDestroy(ctx->renderer, ctx->pipeline);
 	}
@@ -285,27 +303,21 @@ static void ImCallback(ImDrawList const *list, ImDrawCmd const *imcmd) {
 
 	Render_GraphicsEncoderBindPipeline(ctx->currentEncoder, ctx->pipeline);
 
-	Render_DescriptorDesc params[3]{};
-	params[0].name = "uniformBlock";
-	params[0].type = Render_DT_BUFFER;
-	params[0].offset = 0;
-	params[0].size = UNIFORM_BUFFER_SIZE_PER_FRAME;
-	params[0].buffer = ctx->uniformBuffer;
-
-	params[1].name = "colourTexture";
+	Render_DescriptorDesc params[2]{};
+	params[0].name = "colourTexture";
+	params[0].type = Render_DT_TEXTURE;
+	params[1].name = "colourTextureArray";
 	params[1].type = Render_DT_TEXTURE;
-	params[2].name = "colourTextureArray";
-	params[2].type = Render_DT_TEXTURE;
-
-	params[2].type = Render_DT_TEXTURE;
 	if (Image_IsArray(texture->cpu)) {
-		params[1].texture = ctx->dummy2DTexture;
-		params[2].texture = texture->gpu;
+		params[0].texture = ctx->dummy2DTexture;
+		params[1].texture = texture->gpu;
 	} else {
 		params[1].texture = texture->gpu;
-		params[2].texture = ctx->dummy2DArrayTexture;
+		params[0].texture = ctx->dummy2DArrayTexture;
 	}
-	Render_GraphicsEncoderBindDescriptors(ctx->currentEncoder, ctx->descriptorBinder, ctx->rootSignature, 3, params);
+	Render_DescriptorUpdate(ctx->descriptorSetTexture, 0, 2, params);
+
+	Render_GraphicsEncoderBindDescriptorSet(ctx->currentEncoder, ctx->descriptorSetTexture, 0);
 
 	float const clipX = imcmd->ClipRect.x * drawData->FramebufferScale.x;
 	float const clipY = imcmd->ClipRect.y * drawData->FramebufferScale.y;

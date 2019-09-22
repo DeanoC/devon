@@ -232,7 +232,6 @@ static bool Init() {
 	fbDesc.commandPool = Render_RendererGetPrimaryCommandPool(renderer, Render_QT_GRAPHICS);
 	fbDesc.frameBufferWidth = windowDesc.width;
 	fbDesc.frameBufferHeight = windowDesc.height;
-	fbDesc.frameBufferCount = 3;
 	fbDesc.colourFormat = TinyImageFormat_UNDEFINED;
 	fbDesc.depthFormat = TinyImageFormat_UNDEFINED;
 	fbDesc.embeddedImgui = true;
