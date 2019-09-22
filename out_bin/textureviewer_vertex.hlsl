@@ -1,4 +1,4 @@
-cbuffer uniformBlock : register(b0, space0)
+cbuffer uniformBlock : register(b0, space1)
 {
     float4x4 ScaleOffsetMatrix;
 };

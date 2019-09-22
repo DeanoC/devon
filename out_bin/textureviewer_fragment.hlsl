@@ -1,4 +1,4 @@
-cbuffer uniformBlock : register(b0, space0)
+cbuffer uniformBlock : register(b0, space1)
 {
     float4x4 ScaleOffsetMatrix;
 
@@ -22,8 +22,8 @@ struct FSInput {
 Texture2D colourTexture : register(t0, space1);
 Texture2DArray colourTextureArray : register(t1, space1);
 
-SamplerState pointSampler : register(s0, space2);
-SamplerState bilinearSampler : register(s1, space2);
+SamplerState pointSampler : register(s0, space0);
+SamplerState bilinearSampler : register(s1, space0);
 
 float4 SampleTexture(float2 uv) {
     float4 texSample;

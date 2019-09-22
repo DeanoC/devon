@@ -37,8 +37,7 @@ struct TextureViewer {
 	Render_ShaderHandle shader;
 	Render_RootSignatureHandle rootSignature;
 	Render_GraphicsPipelineHandle pipeline;
-	Render_DescriptorSetHandle descriptorSetTexture;
-	Render_DescriptorSetHandle descriptorSetUniform;
+	Render_DescriptorSetHandle descriptorSet;
 	Render_BufferHandle uniformBuffer;
 
 	Render_TextureHandle dummy2DTexture;
@@ -199,24 +198,14 @@ TextureViewerHandle TextureViewer_Create(Render_RendererHandle renderer,
 		return nullptr;
 	}
 
-	Render_DescriptorSetDesc const setDescTexture = {
+	Render_DescriptorSetDesc const setDesc = {
 			ctx->rootSignature,
 			Render_DUF_PER_FRAME,
 			1
 	};
 
-	ctx->descriptorSetTexture = Render_DescriptorSetCreate(ctx->renderer, &setDescTexture);
-	if (!ctx->descriptorSetTexture) {
-		return nullptr;
-	}
-
-	Render_DescriptorSetDesc const setDescUniform = {
-			ctx->rootSignature,
-			Render_DUF_NEVER,
-			1
-	};
-	ctx->descriptorSetUniform = Render_DescriptorSetCreate(ctx->renderer, &setDescTexture);
-	if (!ctx->descriptorSetUniform) {
+	ctx->descriptorSet = Render_DescriptorSetCreate(ctx->renderer, &setDesc);
+	if (!ctx->descriptorSet) {
 		return nullptr;
 	}
 
@@ -267,13 +256,9 @@ void TextureViewer_Destroy(TextureViewerHandle handle) {
 	if (ctx->uniformBuffer) {
 		Render_BufferDestroy(ctx->renderer, ctx->uniformBuffer);
 	}
-	if (ctx->descriptorSetTexture) {
-		Render_DescriptorSetDestroy(ctx->renderer, ctx->descriptorSetTexture);
+	if (ctx->descriptorSet) {
+		Render_DescriptorSetDestroy(ctx->renderer, ctx->descriptorSet);
 	}
-	if (ctx->descriptorSetUniform) {
-		Render_DescriptorSetDestroy(ctx->renderer, ctx->descriptorSetUniform);
-	}
-
 	if (ctx->pipeline) {
 		Render_GraphicsPipelineDestroy(ctx->renderer, ctx->pipeline);
 	}
@@ -303,7 +288,7 @@ static void ImCallback(ImDrawList const *list, ImDrawCmd const *imcmd) {
 
 	Render_GraphicsEncoderBindPipeline(ctx->currentEncoder, ctx->pipeline);
 
-	Render_DescriptorDesc params[2]{};
+	Render_DescriptorDesc params[3];
 	params[0].name = "colourTexture";
 	params[0].type = Render_DT_TEXTURE;
 	params[1].name = "colourTextureArray";
@@ -315,9 +300,14 @@ static void ImCallback(ImDrawList const *list, ImDrawCmd const *imcmd) {
 		params[1].texture = texture->gpu;
 		params[0].texture = ctx->dummy2DArrayTexture;
 	}
-	Render_DescriptorUpdate(ctx->descriptorSetTexture, 0, 2, params);
+	params[2].name = "uniformBlock";
+	params[2].type = Render_DT_BUFFER;
+	params[2].buffer = ctx->uniformBuffer;
+	params[2].offset = 0;
+	params[2].size = UNIFORM_BUFFER_SIZE_PER_FRAME;
 
-	Render_GraphicsEncoderBindDescriptorSet(ctx->currentEncoder, ctx->descriptorSetTexture, 0);
+	Render_DescriptorUpdate(ctx->descriptorSet, 0, 3, params);
+	Render_GraphicsEncoderBindDescriptorSet(ctx->currentEncoder, ctx->descriptorSet, 0);
 
 	float const clipX = imcmd->ClipRect.x * drawData->FramebufferScale.x;
 	float const clipY = imcmd->ClipRect.y * drawData->FramebufferScale.y;
@@ -441,8 +431,8 @@ void TextureViewer_RenderSetup(TextureViewerHandle handle, Render_GraphicsEncode
 			UNIFORM_BUFFER_SIZE_PER_FRAME
 	};
 	Render_BufferUpload(ctx->uniformBuffer, &uniformUpdate);
-
 	ctx->currentEncoder = encoder;
+
 }
 
 void TextureViewer_SetWindowName(TextureViewerHandle handle, char const *windowName) {
