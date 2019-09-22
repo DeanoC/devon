@@ -297,8 +297,8 @@ static void ImCallback(ImDrawList const *list, ImDrawCmd const *imcmd) {
 		params[0].texture = ctx->dummy2DTexture;
 		params[1].texture = texture->gpu;
 	} else {
-		params[1].texture = texture->gpu;
-		params[0].texture = ctx->dummy2DArrayTexture;
+		params[0].texture = texture->gpu;
+		params[1].texture = ctx->dummy2DArrayTexture;
 	}
 	params[2].name = "uniformBlock";
 	params[2].type = Render_DT_BUFFER;
