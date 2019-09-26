@@ -159,9 +159,11 @@ static void LoadTextureToView(char const* fileName)
 static void ShowMenuFile()
 {
 	if (ImGui::MenuItem("Open", "Ctrl+O")) {
-		char* fileName;
-		if(NativeFileDialogs_Load("ktx,dds,exr,hdr,jpg,jpeg,png,tga,bmp,psd,gif,pic,pnm,ppm", lastFolder, &fileName) ) {
-			if(fileName != nullptr) {
+		char *fileName;
+		if (NativeFileDialogs_Load("basis,ktx,dds,exr,hdr,jpg,jpeg,png,tga,bmp,psd,gif,pic,pnm,ppm",
+															 lastFolder,
+															 &fileName)) {
+			if (fileName != nullptr) {
 				char normalisedPath[2048];
 				Os_GetNormalisedPathFromPlatformPath(fileName, normalisedPath, 2048);
 				MEMORY_FREE(fileName);
