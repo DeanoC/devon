@@ -21,3 +21,6 @@ jobs:
       run: |
         cd build
         cmake --build . --config Release -j 8
+    - name: Upload artifact
+        uses: actions/upload-artifact@v1.0.0
+        path: build/out_bin
