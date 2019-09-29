@@ -2,7 +2,19 @@
 
 # Devon -Texture viewer using al2o3 and the-forge #
 
-Currently it can do ordinary formats via @nothings stb. EXR via @syoyo tiny exr. Basis u files via @richgel999 . tiny ktx and dds. Can decompress BC1-5 + 7 + ETC1 + ASTC LDR if no HW support. Use @TheForge_FX for rendering.
+Currently it can do 
+
+ordinary formats via @nothings stb. 
+
+EXR via @syoyo tiny exr. 
+
+Basis u files via @richgel999
+
+tiny ktx and dds via me @DeanoC. 
+
+Use @TheForge_FX for rendering.
+
+Can decompress BC1-5 + 7 + ETC1 + ASTC LDR if no HW support. 
 
 RGBA selector and signed viewing. View each array slices and mip map level.
 
