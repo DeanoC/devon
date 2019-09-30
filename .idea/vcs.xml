@@ -2,7 +2,6 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$/../al2o3/al2o3_cadt-src" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/../al2o3/al2o3_catch2-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../al2o3/al2o3_cmath-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../al2o3/al2o3_enki-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../al2o3/al2o3_memory-src" vcs="Git" />
@@ -13,7 +12,6 @@
     <mapping directory="$PROJECT_DIR$/../al2o3/al2o3_tinystl-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../al2o3/al2o3_vfile-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../al2o3/data_bufferutils-src" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/../al2o3/gfx_glslang-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../al2o3/gfx_image_impl_basic-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../al2o3/gfx_image_interface-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../al2o3/gfx_imagecompress-src" vcs="Git" />
@@ -21,7 +19,6 @@
     <mapping directory="$PROJECT_DIR$/../al2o3/gfx_imageio-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../al2o3/gfx_imgui-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../al2o3/gfx_imgui_al2o3_theforge_bindings-src" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/../al2o3/gfx_shaderc-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../al2o3/gfx_shadercompiler-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../al2o3/gfx_spirvcross-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../al2o3/gfx_spirvheaders-src" vcs="Git" />
@@ -30,9 +27,6 @@
     <mapping directory="$PROJECT_DIR$/../al2o3/input_basic_impl_gainput-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../al2o3/input_basic_interface-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../al2o3/input_gainput-src" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/../al2o3/lua_al2o3_os-src" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/../al2o3/lua_base5.3-src" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/../al2o3/lua_image-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../al2o3/render_basics_impl_theforge-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../al2o3/render_basics_interface-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../al2o3/tiny_dds-src" vcs="Git" />
@@ -45,7 +39,6 @@
     <mapping directory="$PROJECT_DIR$/../al2o3/utils_simple_logmanager-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/cmake-build-debug/_deps/al2o3-src" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/cmake-build-debug/_deps/catchorg_catch2-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/cmake-build-debug/_deps/lz4_lz4-src" vcs="Git" />
   </component>
 </project>
