@@ -13,7 +13,6 @@
 #include "input_basic/input.h"
 
 #include "render_basics/api.h"
-#include "render_basics/view.h"
 #include "render_basics/framebuffer.h"
 #include "render_basics/texture.h"
 
