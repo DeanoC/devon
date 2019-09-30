@@ -160,7 +160,7 @@ static void ShowMenuFile()
 {
 	if (ImGui::MenuItem("Open", "Ctrl+O")) {
 		char *fileName;
-		if (NativeFileDialogs_Load("basis,ktx,dds,exr,hdr,jpg,jpeg,png,tga,bmp,psd,gif,pic,pnm,ppm",
+		if (NativeFileDialogs_Load("ktx,dds,exr,hdr,jpg,jpeg,png,tga,bmp,psd,gif,pic,pnm,ppm,basis",
 															 lastFolder,
 															 &fileName)) {
 			if (fileName != nullptr) {
