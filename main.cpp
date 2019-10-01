@@ -289,8 +289,8 @@ static void Update(double deltaMS) {
 		TextureViewer_DrawUI(textureViewer, &textureToView);
 	}
 
-	static bool demoWindow = false;
-	ImGui::ShowDemoWindow(&demoWindow);
+//	static bool demoWindow = false;
+//	ImGui::ShowDemoWindow(&demoWindow);
 
 	ImGui::EndFrame();
 	ImGui::Render();
