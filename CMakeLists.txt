@@ -21,6 +21,7 @@ set(Src
 		main.cpp
 		texture_viewer.cpp
 		texture_viewer.hpp
+		about.cpp
 		)
 set(Deps
 		al2o3_platform

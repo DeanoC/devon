@@ -1,4 +1,3 @@
-#include <cstdio> // for sprintf
 #include "al2o3_platform/platform.h"
 #include "al2o3_platform/visualdebug.h"
 #include "al2o3_memory/memory.h"
@@ -18,8 +17,10 @@
 
 #include "gfx_imgui/imgui.h"
 #include "utils_nativefiledialogs/dialogs.h"
+#include <cstdio> // for sprintf
 
 #include "texture_viewer.hpp"
+#include "about.h"
 
 Render_RendererHandle renderer;
 Render_QueueHandle graphicsQueue;
@@ -186,6 +187,10 @@ static void ShowAppMainMenuBar()
 			ShowMenuFile();
 			ImGui::EndMenu();
 		}
+		if(ImGui::Button("About") ) {
+			About_Open();
+		}
+
 		ImGui::EndMainMenuBar();
 	}
 }
@@ -276,10 +281,16 @@ static void Update(double deltaMS) {
 
 	ImGui::NewFrame();
 
+	About_Display();
+
 	ShowAppMainMenuBar();
+
 	if(textureToView.cpu != nullptr) {
 		TextureViewer_DrawUI(textureViewer, &textureToView);
 	}
+
+	static bool demoWindow = false;
+	ImGui::ShowDemoWindow(&demoWindow);
 
 	ImGui::EndFrame();
 	ImGui::Render();
@@ -305,6 +316,8 @@ static void Unload() {
 	LOGINFO("Unloading");
 
 	Render_QueueWaitIdle(graphicsQueue);
+
+	About_Close();
 }
 
 static void Exit() {
