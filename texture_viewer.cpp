@@ -325,21 +325,25 @@ static void ImCallback(ImDrawList const *list, ImDrawCmd const *imcmd) {
 	Render_GraphicsEncoderDrawIndexed(ctx->currentEncoder, 6, imcmd->IdxOffset, imcmd->VtxOffset);
 }
 
-void TextureViewer_DrawUI(TextureViewerHandle handle, TextureViewer_Texture *texture) {
+bool TextureViewer_DrawUI(TextureViewerHandle handle, TextureViewer_Texture *texture) {
 	auto ctx = (TextureViewer *) handle;
 	if (!ctx) {
-		return;
+		return false;
 	}
 
 	ImGuiWindowFlags window_flags = ImGuiWindowFlags_AlwaysAutoResize;
-
-	ImGui::Begin(ctx->windowName, nullptr, window_flags);
+	bool open = true;
+	ImGui::Begin(ctx->windowName, &open, window_flags);
+	if(open == false) {
+		ImGui::End();
+		return false;
+	}
 
 	ImGuiWindow *window = ImGui::GetCurrentWindow();
 	ImDrawList *drawList = ImGui::GetWindowDrawList();
 	if (window->SkipItems || !texture) {
 		ImGui::End();
-		return;
+		return false;
 	}
 
 	ImGui::Checkbox("R", ctx->colourChannelEnable + 0);
@@ -397,6 +401,7 @@ void TextureViewer_DrawUI(TextureViewerHandle handle, TextureViewer_Texture *tex
 	ctx->uniforms.signedRGB = signedRGB;
 
 	ImGui::End();
+	return true;
 }
 
 void TextureViewer_RenderSetup(TextureViewerHandle handle, Render_GraphicsEncoderHandle encoder) {

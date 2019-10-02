@@ -15,7 +15,7 @@ TextureViewerHandle TextureViewer_Create(Render_RendererHandle renderer,
 																				 Render_FrameBufferHandle frameBuffer);
 void TextureViewer_Destroy(TextureViewerHandle handle);
 
-void TextureViewer_DrawUI(TextureViewerHandle handle, TextureViewer_Texture *texture);
+bool TextureViewer_DrawUI(TextureViewerHandle handle, TextureViewer_Texture *texture);
 // must be called before Imguibinding render. Sets up things for the callbacks from imgui
 void TextureViewer_RenderSetup(TextureViewerHandle handle, Render_GraphicsEncoderHandle encoder);
 

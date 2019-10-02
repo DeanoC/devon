@@ -2,6 +2,9 @@
 #include "al2o3_platform/visualdebug.h"
 #include "al2o3_memory/memory.h"
 #include "al2o3_enki/TaskScheduler_c.h"
+#include "al2o3_cadt/freelist.h"
+#include "al2o3_cadt/vector.h"
+
 #include "gfx_imageio/io.h"
 #include "gfx_image/utils.h"
 #include "gfx_imagedecompress/imagedecompress.h"
@@ -31,14 +34,20 @@ InputBasic_KeyboardHandle keyboard;
 InputBasic_MouseHandle mouse;
 
 enkiTaskSchedulerHandle taskScheduler;
+char* lastFolder;
 
 enum AppKey {
 	AppKey_Quit
 };
 
-TextureViewerHandle textureViewer;
-TextureViewer_Texture textureToView;
-char* lastFolder;
+static const int MAX_TEXTURE_WINDOWS = 100;
+struct TextureWindow {
+	TextureViewerHandle textureViewer;
+	TextureViewer_Texture textureToView;
+};
+
+CADT_FreeListHandle textureWindowFreeList;
+CADT_VectorHandle textureWindows;
 
 static void* EnkiAlloc(void* userData, size_t size) {
 	return MEMORY_ALLOCATOR_MALLOC( (Memory_Allocator*)userData, size );
@@ -47,15 +56,15 @@ static void EnkiFree(void* userData, void* ptr) {
 	MEMORY_ALLOCATOR_FREE( (Memory_Allocator*)userData, ptr );
 }
 
-static void LoadTextureToView(char const* fileName)
+static void LoadTextureToView(char const* fileName, TextureWindow* tw)
 {
-	if(textureToView.cpu != nullptr) {
-		Image_Destroy(textureToView.cpu);
-		textureToView.cpu = nullptr;
+	if(tw->textureToView.cpu != nullptr) {
+		Image_Destroy(tw->textureToView.cpu);
+		tw->textureToView.cpu = nullptr;
 	}
-	if(textureToView.gpu != nullptr) {
-		Render_TextureDestroy(renderer, textureToView.gpu);
-		textureToView.gpu = nullptr;
+	if(tw->textureToView.gpu != nullptr) {
+		Render_TextureDestroy(renderer, tw->textureToView.gpu);
+		tw->textureToView.gpu = nullptr;
 	}
 
 	size_t startOfFileName = 0;
@@ -74,85 +83,84 @@ static void LoadTextureToView(char const* fileName)
 		return;
 	}
 
-	textureToView.cpu = Image_Load(fh);
+	tw->textureToView.cpu = Image_Load(fh);
 	VFile_Close(fh);
-	if (!textureToView.cpu) {
+	if (!tw->textureToView.cpu) {
 		LOGINFO("Image_Load failed for %s", fileName);
 		return;
 	}
 
-	TinyImageFormat originalFormat = textureToView.cpu->format;
-	bool supported = Render_RendererCanShaderReadFrom(renderer, textureToView.cpu->format);
+	TinyImageFormat originalFormat = tw->textureToView.cpu->format;
+	bool supported = Render_RendererCanShaderReadFrom(renderer, tw->textureToView.cpu->format);
 
 	// force CPU for testing
 	// supported = false;
 
 	if (!supported) {
 		// convert to R8G8B8A8 for now
-		if (!TinyImageFormat_IsCompressed(textureToView.cpu->format)) {
-			Image_ImageHeader const *converted = textureToView.cpu;
-			if (TinyImageFormat_IsSigned(textureToView.cpu->format)) {
-				converted = Image_FastConvert(textureToView.cpu, TinyImageFormat_R8G8B8A8_SNORM, true);
+		if (!TinyImageFormat_IsCompressed(tw->textureToView.cpu->format)) {
+			Image_ImageHeader const *converted = tw->textureToView.cpu;
+			if (TinyImageFormat_IsSigned(tw->textureToView.cpu->format)) {
+				converted = Image_FastConvert(tw->textureToView.cpu, TinyImageFormat_R8G8B8A8_SNORM, true);
 			} else {
-				converted = Image_FastConvert(textureToView.cpu, TinyImageFormat_R8G8B8A8_UNORM, true);
+				converted = Image_FastConvert(tw->textureToView.cpu, TinyImageFormat_R8G8B8A8_UNORM, true);
 			}
-			if(converted != textureToView.cpu) {
-				Image_Destroy(textureToView.cpu);
-				textureToView.cpu = converted;
+			if(converted != tw->textureToView.cpu) {
+				Image_Destroy(tw->textureToView.cpu);
+				tw->textureToView.cpu = converted;
 			}
 		} else {
-			Image_ImageHeader const* converted = textureToView.cpu;
-			converted = Image_Decompress(textureToView.cpu);
-			if(converted == nullptr || converted == textureToView.cpu ) {
+			Image_ImageHeader const* converted = tw->textureToView.cpu;
+			converted = Image_Decompress(tw->textureToView.cpu);
+			if(converted == nullptr || converted == tw->textureToView.cpu ) {
 				LOGINFO("%s with format %s isn't supported by this GPU/backend and can't be converted",
 								 fileName,
-								 TinyImageFormat_Name(textureToView.cpu->format));
-				Image_Destroy(textureToView.cpu);
-				textureToView.cpu = nullptr;
+								 TinyImageFormat_Name(tw->textureToView.cpu->format));
+				Image_Destroy(tw->textureToView.cpu);
+				tw->textureToView.cpu = nullptr;
 				return;
 			} else {
-				Image_Destroy(textureToView.cpu);
-				textureToView.cpu = converted;
+				Image_Destroy(tw->textureToView.cpu);
+				tw->textureToView.cpu = converted;
 			}
 		}
 	}
 
-	if(Image_MipMapCountOf(textureToView.cpu) > 1) {
-		Image_ImageHeader const * packed = Image_PackMipmaps(textureToView.cpu);
-		if(textureToView.cpu != packed) {
-			Image_Destroy(textureToView.cpu);
-			textureToView.cpu = packed;
+	if(Image_MipMapCountOf(tw->textureToView.cpu) > 1) {
+		Image_ImageHeader const * packed = Image_PackMipmaps(tw->textureToView.cpu);
+		if(tw->textureToView.cpu != packed) {
+			Image_Destroy(tw->textureToView.cpu);
+			tw->textureToView.cpu = packed;
 		}
-		ASSERT(Image_HasPackedMipMaps(textureToView.cpu));
+		ASSERT(Image_HasPackedMipMaps(tw->textureToView.cpu));
 	}
 
 	char tmpbuffer[2048];
 	sprintf(tmpbuffer, "%s - %ix%i - %s - %s", fileName + startOfFileName,
-					textureToView.cpu->width,
-					textureToView.cpu->height,
+					tw->textureToView.cpu->width,
+					tw->textureToView.cpu->height,
 					TinyImageFormat_Name(originalFormat),
 					supported ? "GPU" : "CPU"
 	);
 
-	TextureViewer_SetWindowName(textureViewer, tmpbuffer);
-	TextureViewer_SetZoom(textureViewer, 768.0f / textureToView.cpu->width);
+	TextureViewer_SetWindowName(tw->textureViewer, tmpbuffer);
+	TextureViewer_SetZoom(tw->textureViewer, 768.0f / tw->textureToView.cpu->width);
 
 	Render_TextureCreateDesc createGPUDesc{
-			textureToView.cpu->format,
+			tw->textureToView.cpu->format,
 			Render_TUF_SHADER_READ,
-			textureToView.cpu->width,
-			textureToView.cpu->height,
-			textureToView.cpu->depth,
-			textureToView.cpu->slices,
-			(uint32_t) Image_MipMapCountOf(textureToView.cpu),
+			tw->textureToView.cpu->width,
+			tw->textureToView.cpu->height,
+			tw->textureToView.cpu->depth,
+			tw->textureToView.cpu->slices,
+			(uint32_t) Image_MipMapCountOf(tw->textureToView.cpu),
 			0,
 			0,
-			(unsigned char *) Image_RawDataPtr(textureToView.cpu),
+			(unsigned char *) Image_RawDataPtr(tw->textureToView.cpu),
 			fileName + startOfFileName,
 	};
 
-	textureToView.gpu = Render_TextureSyncCreate(renderer, &createGPUDesc);
-
+	tw->textureToView.gpu = Render_TextureSyncCreate(renderer, &createGPUDesc);
 }
 
 // Note that shortcuts are currently provided for display only (future version will add flags to BeginMenu to process shortcuts)
@@ -167,7 +175,18 @@ static void ShowMenuFile()
 				char normalisedPath[2048];
 				Os_GetNormalisedPathFromPlatformPath(fileName, normalisedPath, 2048);
 				MEMORY_FREE(fileName);
-				LoadTextureToView(normalisedPath);
+				auto textureWindow = (TextureWindow*)CADT_FreeListAlloc(textureWindowFreeList);
+				if(textureWindow) {
+					textureWindow->textureViewer = TextureViewer_Create(renderer, frameBuffer);
+					if(!textureWindow->textureViewer) {
+						CADT_FreeListFree(textureWindowFreeList, textureWindow);
+						LOGERROR("TextureViewer_Create failed");
+						return;
+					}
+					memset(&textureWindow->textureToView, 0, sizeof(TextureViewer_Texture));
+					LoadTextureToView(normalisedPath, textureWindow);
+					CADT_VectorPushElement(textureWindows, &textureWindow);
+				}
 			}
 		}
 
@@ -248,11 +267,8 @@ static bool Init() {
 	lastFolder = (char*) MEMORY_CALLOC(strlen(DefaultFolder)+1,1);
 	memcpy(lastFolder, DefaultFolder, strlen(DefaultFolder));
 
-	textureViewer = TextureViewer_Create(renderer, frameBuffer);
-	if(!textureViewer) {
-		LOGERROR("TextureViewer_Create failed");
-		return false;
-	}
+	textureWindowFreeList = CADT_FreeListCreate(sizeof(TextureWindow), MAX_TEXTURE_WINDOWS );
+	textureWindows = CADT_VectorCreate(sizeof(TextureWindow*));
 
 	return true;
 }
@@ -285,9 +301,41 @@ static void Update(double deltaMS) {
 
 	ShowAppMainMenuBar();
 
-	if(textureToView.cpu != nullptr) {
-		TextureViewer_DrawUI(textureViewer, &textureToView);
+	TextureWindow* toClose[MAX_TEXTURE_WINDOWS];
+	uint32_t closeCount = 0;
+	for (auto i = 0u; i < CADT_VectorSize(textureWindows); ++i) {
+		auto textureWindow = *(TextureWindow**) CADT_VectorAt(textureWindows, i);
+		ASSERT(textureWindow);
+
+		if(textureWindow->textureToView.cpu != nullptr) {
+			bool keepOpen = TextureViewer_DrawUI(textureWindow->textureViewer, &textureWindow->textureToView);
+			if(!keepOpen) {
+				toClose[closeCount++] = textureWindow;
+			}
+		} else {
+			toClose[closeCount++] = textureWindow;
+		}
 	}
+	for (auto i = 0u; i < closeCount; ++i) {
+		auto textureWindow = (TextureWindow*) toClose[i];
+		ASSERT(textureWindow);
+
+		TextureViewer_Destroy(textureWindow->textureViewer); textureWindow->textureViewer = nullptr;
+		if(textureWindow->textureToView.cpu) {
+			Image_Destroy(textureWindow->textureToView.cpu);
+			textureWindow->textureToView.cpu = nullptr;
+		}
+
+		if(textureWindow->textureToView.gpu) {
+			Render_TextureDestroy(renderer, textureWindow->textureToView.gpu);
+			textureWindow->textureToView.gpu = nullptr;
+		}
+
+		TextureViewer_Destroy(textureWindow->textureViewer); textureWindow->textureViewer = nullptr;
+		CADT_VectorRemove(textureWindows, CADT_VectorFind(textureWindows, &textureWindow));
+		CADT_FreeListFree(textureWindowFreeList, textureWindow);
+	}
+
 
 //	static bool demoWindow = false;
 //	ImGui::ShowDemoWindow(&demoWindow);
@@ -303,7 +351,11 @@ static void Draw(double deltaMS) {
 
 	Render_FrameBufferNewFrame(frameBuffer);
 
-	TextureViewer_RenderSetup(textureViewer, Render_FrameBufferGraphicsEncoder(frameBuffer));
+	for (auto i = 0u; i < CADT_VectorSize(textureWindows); ++i) {
+		auto textureWindow = *(TextureWindow**) CADT_VectorAt(textureWindows, i);
+		ASSERT(textureWindow);
+		TextureViewer_RenderSetup(textureWindow->textureViewer, Render_FrameBufferGraphicsEncoder(frameBuffer));
+	}
 
 	Render_FrameBufferPresent(frameBuffer);
 
@@ -325,18 +377,24 @@ static void Exit() {
 
 	MEMORY_FREE(lastFolder);
 
+	for (auto i = 0u; i < CADT_VectorSize(textureWindows); ++i) {
+		auto textureWindow = *(TextureWindow**) CADT_VectorAt(textureWindows, i);
+		ASSERT(textureWindow);
+		TextureViewer_Destroy(textureWindow->textureViewer); textureWindow->textureViewer = nullptr;
+		if(textureWindow->textureToView.cpu) {
+			Image_Destroy(textureWindow->textureToView.cpu);
+			textureWindow->textureToView.cpu = nullptr;
+		}
+		if(textureWindow->textureToView.gpu) {
+			Render_TextureDestroy(renderer, textureWindow->textureToView.gpu);
+			textureWindow->textureToView.gpu = nullptr;
+		}
 
-	TextureViewer_Destroy(textureViewer); textureViewer = nullptr;
-	if(textureToView.cpu) {
-		Image_Destroy(textureToView.cpu);
-		textureToView.cpu = nullptr;
+		TextureViewer_Destroy(textureWindow->textureViewer); textureWindow->textureViewer = nullptr;
 	}
-	if(textureToView.gpu) {
-		Render_TextureDestroy(renderer, textureToView.gpu);
-		textureToView.gpu = nullptr;
-	}
-
-	TextureViewer_Destroy(textureViewer); textureViewer = nullptr;
+	// no need to pop each element as destroying
+	CADT_VectorDestroy(textureWindows);
+	CADT_FreeListDestroy(textureWindowFreeList);
 
 	InputBasic_MouseDestroy(mouse);
 	InputBasic_KeyboardDestroy(keyboard);
