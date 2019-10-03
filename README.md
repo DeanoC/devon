@@ -4,7 +4,7 @@
 
 Currently it can do 
 
-ordinary formats via @nothings stb. 
+Ordinary formats via @nothings stb. 
 
 EXR via @syoyo tiny exr. 
 
@@ -14,7 +14,7 @@ tiny ktx and dds via me @DeanoC.
 
 Use @TheForge_FX for rendering.
 
-Can decompress BC1-5 + 7 + ETC1 + ASTC LDR if no HW support. 
+Can decompress BC1-5 + 7 + ETC1 + ETC2 + EAC + ASTC LDR even with no HW support. 
 
 RGBA selector and signed viewing. View each array slices and mip map level.
 
@@ -29,6 +29,10 @@ ImageIO does the loading
 Image handles format conversion 
 
 ImageDecompres handle compressed format decompression.
+
+Will open any texture listed on the command line
+
+Can have multiple textures open at once
 
 Rendering is done using TheForge.
 Currently Windows D3D12 is the main tested platform. 
