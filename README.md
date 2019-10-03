@@ -30,7 +30,11 @@ Image handles format conversion
 
 ImageDecompres handle compressed format decompression.
 
-Rendering is done using TheForge, currently Windows D3D12 is the tested platform. MacOs via metal is tempororily broken but is normally a working tests configuration. Has worked in the past with Windows Vulkan.
+Rendering is done using TheForge.
+Currently Windows D3D12 is the main tested platform. 
+MacOs via metal is working via IDE but @rpath issues means doesn't run standalone yet.
+
+Has worked in the past with Windows Vulkan.
 Linux Vulkan and Windows Dx11 will likely be supported in the future
 
 TODO
