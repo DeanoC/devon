@@ -35,10 +35,6 @@ Linux Vulkan and Windows Dx11 will likely be supported in the future
 
 TODO
 ----
-Multiple files open
-
-About with all license info of all the libraries
-
 Use enki tasks for the decompression
 
 Drag and Drop
