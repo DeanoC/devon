@@ -358,10 +358,6 @@ static void Draw(double deltaMS) {
 	}
 
 	Render_FrameBufferPresent(frameBuffer);
-
-	//	VISDEBUG_LINE( 0,0,0,  10,0,0,  1,1,1,1);
-	AL2O3_VisualDebugging.Line(0, 0, 0, 10, 0, 0, VISDEBUG_PACKCOLOUR(255, 255, 255, 255));
-
 }
 
 static void Unload() {
