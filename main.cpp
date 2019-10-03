@@ -34,35 +34,38 @@ InputBasic_KeyboardHandle keyboard;
 InputBasic_MouseHandle mouse;
 
 enkiTaskSchedulerHandle taskScheduler;
-char* lastFolder;
+char *lastFolder;
 
 enum AppKey {
 	AppKey_Quit
 };
 
 static const int MAX_TEXTURE_WINDOWS = 100;
+static const int MAX_INPUT_PATH_LENGTH = 1024;
+
 struct TextureWindow {
 	TextureViewerHandle textureViewer;
 	TextureViewer_Texture textureToView;
 };
 
+void LoadTexture(char const *fileName);
 CADT_FreeListHandle textureWindowFreeList;
 CADT_VectorHandle textureWindows;
+CADT_VectorHandle fileToOpenQueue;
 
-static void* EnkiAlloc(void* userData, size_t size) {
-	return MEMORY_ALLOCATOR_MALLOC( (Memory_Allocator*)userData, size );
+static void *EnkiAlloc(void *userData, size_t size) {
+	return MEMORY_ALLOCATOR_MALLOC((Memory_Allocator *) userData, size);
 }
-static void EnkiFree(void* userData, void* ptr) {
-	MEMORY_ALLOCATOR_FREE( (Memory_Allocator*)userData, ptr );
+static void EnkiFree(void *userData, void *ptr) {
+	MEMORY_ALLOCATOR_FREE((Memory_Allocator *) userData, ptr);
 }
 
-static void LoadTextureToView(char const* fileName, TextureWindow* tw)
-{
-	if(tw->textureToView.cpu != nullptr) {
+static void LoadTextureToView(char const *fileName, TextureWindow *tw) {
+	if (tw->textureToView.cpu != nullptr) {
 		Image_Destroy(tw->textureToView.cpu);
 		tw->textureToView.cpu = nullptr;
 	}
-	if(tw->textureToView.gpu != nullptr) {
+	if (tw->textureToView.gpu != nullptr) {
 		Render_TextureDestroy(renderer, tw->textureToView.gpu);
 		tw->textureToView.gpu = nullptr;
 	}
@@ -73,9 +76,8 @@ static void LoadTextureToView(char const* fileName, TextureWindow* tw)
 	Os_SplitPath(fileName, &startOfFileName, &startOfFileNameExt);
 
 	MEMORY_FREE(lastFolder);
-	lastFolder = (char*) MEMORY_CALLOC(startOfFileName+1,1);
-	memcpy(lastFolder, lastFolder, startOfFileName);
-
+	lastFolder = (char *) MEMORY_CALLOC(startOfFileName + 1, 1);
+	memcpy(lastFolder, fileName, startOfFileName);
 
 	VFile_Handle fh = VFile_FromFile(fileName, Os_FM_ReadBinary);
 	if (!fh) {
@@ -105,17 +107,17 @@ static void LoadTextureToView(char const* fileName, TextureWindow* tw)
 			} else {
 				converted = Image_FastConvert(tw->textureToView.cpu, TinyImageFormat_R8G8B8A8_UNORM, true);
 			}
-			if(converted != tw->textureToView.cpu) {
+			if (converted != tw->textureToView.cpu) {
 				Image_Destroy(tw->textureToView.cpu);
 				tw->textureToView.cpu = converted;
 			}
 		} else {
-			Image_ImageHeader const* converted = tw->textureToView.cpu;
+			Image_ImageHeader const *converted = tw->textureToView.cpu;
 			converted = Image_Decompress(tw->textureToView.cpu);
-			if(converted == nullptr || converted == tw->textureToView.cpu ) {
+			if (converted == nullptr || converted == tw->textureToView.cpu) {
 				LOGINFO("%s with format %s isn't supported by this GPU/backend and can't be converted",
-								 fileName,
-								 TinyImageFormat_Name(tw->textureToView.cpu->format));
+								fileName,
+								TinyImageFormat_Name(tw->textureToView.cpu->format));
 				Image_Destroy(tw->textureToView.cpu);
 				tw->textureToView.cpu = nullptr;
 				return;
@@ -126,9 +128,9 @@ static void LoadTextureToView(char const* fileName, TextureWindow* tw)
 		}
 	}
 
-	if(Image_MipMapCountOf(tw->textureToView.cpu) > 1) {
-		Image_ImageHeader const * packed = Image_PackMipmaps(tw->textureToView.cpu);
-		if(tw->textureToView.cpu != packed) {
+	if (Image_MipMapCountOf(tw->textureToView.cpu) > 1) {
+		Image_ImageHeader const *packed = Image_PackMipmaps(tw->textureToView.cpu);
+		if (tw->textureToView.cpu != packed) {
 			Image_Destroy(tw->textureToView.cpu);
 			tw->textureToView.cpu = packed;
 		}
@@ -164,30 +166,13 @@ static void LoadTextureToView(char const* fileName, TextureWindow* tw)
 }
 
 // Note that shortcuts are currently provided for display only (future version will add flags to BeginMenu to process shortcuts)
-static void ShowMenuFile()
-{
+static void ShowMenuFile() {
 	if (ImGui::MenuItem("Open", "Ctrl+O")) {
 		char *fileName;
 		if (NativeFileDialogs_Load("ktx,dds,exr,hdr,jpg,jpeg,png,tga,bmp,psd,gif,pic,pnm,ppm,basis",
-															 lastFolder,
-															 &fileName)) {
-			if (fileName != nullptr) {
-				char normalisedPath[2048];
-				Os_GetNormalisedPathFromPlatformPath(fileName, normalisedPath, 2048);
-				MEMORY_FREE(fileName);
-				auto textureWindow = (TextureWindow*)CADT_FreeListAlloc(textureWindowFreeList);
-				if(textureWindow) {
-					textureWindow->textureViewer = TextureViewer_Create(renderer, frameBuffer);
-					if(!textureWindow->textureViewer) {
-						CADT_FreeListFree(textureWindowFreeList, textureWindow);
-						LOGERROR("TextureViewer_Create failed");
-						return;
-					}
-					memset(&textureWindow->textureToView, 0, sizeof(TextureViewer_Texture));
-					LoadTextureToView(normalisedPath, textureWindow);
-					CADT_VectorPushElement(textureWindows, &textureWindow);
-				}
-			}
+															 lastFolder, &fileName)) {
+			LoadTexture(fileName);
+			MEMORY_FREE(fileName);
 		}
 
 	}
@@ -197,16 +182,33 @@ static void ShowMenuFile()
 	}
 }
 
-static void ShowAppMainMenuBar()
-{
-	if (ImGui::BeginMainMenuBar())
-	{
-		if (ImGui::BeginMenu("File"))
-		{
+void LoadTexture(char const *fileName) {
+	if (fileName == nullptr) {
+		return;
+	}
+	char normalisedPath[2048];
+	Os_GetNormalisedPathFromPlatformPath(fileName, normalisedPath, 2048);
+	auto textureWindow = (TextureWindow *) CADT_FreeListAlloc(textureWindowFreeList);
+	if (textureWindow) {
+		textureWindow->textureViewer = TextureViewer_Create(renderer, frameBuffer);
+		if (!textureWindow->textureViewer) {
+			CADT_FreeListFree(textureWindowFreeList, textureWindow);
+			LOGERROR("TextureViewer_Create failed");
+			return;
+		}
+		memset(&textureWindow->textureToView, 0, sizeof(TextureViewer_Texture));
+		LoadTextureToView(normalisedPath, textureWindow);
+		CADT_VectorPushElement(textureWindows, &textureWindow);
+	}
+}
+
+static void ShowAppMainMenuBar() {
+	if (ImGui::BeginMainMenuBar()) {
+		if (ImGui::BeginMenu("File")) {
 			ShowMenuFile();
 			ImGui::EndMenu();
 		}
-		if(ImGui::Button("About") ) {
+		if (ImGui::Button("About")) {
 			About_Open();
 		}
 
@@ -214,11 +216,10 @@ static void ShowAppMainMenuBar()
 	}
 }
 
-
 static bool Init() {
 
 #if AL2O3_PLATFORM == AL2O3_PLATFORM_APPLE_MAC
-//	Os_SetCurrentDir("../.."); // for xcode, no idea...
+	//	Os_SetCurrentDir("../.."); // for xcode, no idea...
 	Os_SetCurrentDir("..");
 	char currentDir[2048];
 	Os_GetCurrentDir(currentDir, 2048);
@@ -264,16 +265,21 @@ static bool Init() {
 	frameBuffer = Render_FrameBufferCreate(renderer, &fbDesc);
 
 	static char const DefaultFolder[] = "";
-	lastFolder = (char*) MEMORY_CALLOC(strlen(DefaultFolder)+1,1);
+	lastFolder = (char *) MEMORY_CALLOC(strlen(DefaultFolder) + 1, 1);
 	memcpy(lastFolder, DefaultFolder, strlen(DefaultFolder));
 
-	textureWindowFreeList = CADT_FreeListCreate(sizeof(TextureWindow), MAX_TEXTURE_WINDOWS );
-	textureWindows = CADT_VectorCreate(sizeof(TextureWindow*));
+	textureWindowFreeList = CADT_FreeListCreate(sizeof(TextureWindow), MAX_TEXTURE_WINDOWS);
+	textureWindows = CADT_VectorCreate(sizeof(TextureWindow *));
 
 	return true;
 }
 
 static bool Load() {
+	while (!CADT_VectorIsEmpty(fileToOpenQueue)) {
+		char path[MAX_INPUT_PATH_LENGTH];
+		CADT_VectorPopElement(fileToOpenQueue, path);
+		LoadTexture(path);
+	}
 
 	return true;
 }
@@ -281,7 +287,6 @@ static bool Load() {
 static void Update(double deltaMS) {
 	GameAppShell_WindowDesc windowDesc;
 	GameAppShell_WindowGetCurrentDesc(&windowDesc);
-
 
 	InputBasic_SetWindowSize(input, windowDesc.width, windowDesc.height);
 	InputBasic_Update(input, deltaMS);
@@ -301,15 +306,15 @@ static void Update(double deltaMS) {
 
 	ShowAppMainMenuBar();
 
-	TextureWindow* toClose[MAX_TEXTURE_WINDOWS];
+	TextureWindow *toClose[MAX_TEXTURE_WINDOWS];
 	uint32_t closeCount = 0;
 	for (auto i = 0u; i < CADT_VectorSize(textureWindows); ++i) {
-		auto textureWindow = *(TextureWindow**) CADT_VectorAt(textureWindows, i);
+		auto textureWindow = *(TextureWindow **) CADT_VectorAt(textureWindows, i);
 		ASSERT(textureWindow);
 
-		if(textureWindow->textureToView.cpu != nullptr) {
+		if (textureWindow->textureToView.cpu != nullptr) {
 			bool keepOpen = TextureViewer_DrawUI(textureWindow->textureViewer, &textureWindow->textureToView);
-			if(!keepOpen) {
+			if (!keepOpen) {
 				toClose[closeCount++] = textureWindow;
 			}
 		} else {
@@ -317,28 +322,30 @@ static void Update(double deltaMS) {
 		}
 	}
 	for (auto i = 0u; i < closeCount; ++i) {
-		auto textureWindow = (TextureWindow*) toClose[i];
+		auto textureWindow = (TextureWindow *) toClose[i];
 		ASSERT(textureWindow);
 
-		TextureViewer_Destroy(textureWindow->textureViewer); textureWindow->textureViewer = nullptr;
-		if(textureWindow->textureToView.cpu) {
+		TextureViewer_Destroy(textureWindow->textureViewer);
+		textureWindow->textureViewer = nullptr;
+		if (textureWindow->textureToView.cpu) {
 			Image_Destroy(textureWindow->textureToView.cpu);
 			textureWindow->textureToView.cpu = nullptr;
 		}
 
-		if(textureWindow->textureToView.gpu) {
+		if (textureWindow->textureToView.gpu) {
 			Render_TextureDestroy(renderer, textureWindow->textureToView.gpu);
 			textureWindow->textureToView.gpu = nullptr;
 		}
 
-		TextureViewer_Destroy(textureWindow->textureViewer); textureWindow->textureViewer = nullptr;
+		TextureViewer_Destroy(textureWindow->textureViewer);
+		textureWindow->textureViewer = nullptr;
 		CADT_VectorRemove(textureWindows, CADT_VectorFind(textureWindows, &textureWindow));
 		CADT_FreeListFree(textureWindowFreeList, textureWindow);
 	}
 
 
-//	static bool demoWindow = false;
-//	ImGui::ShowDemoWindow(&demoWindow);
+	//	static bool demoWindow = false;
+	//	ImGui::ShowDemoWindow(&demoWindow);
 
 	ImGui::EndFrame();
 	ImGui::Render();
@@ -352,7 +359,7 @@ static void Draw(double deltaMS) {
 	Render_FrameBufferNewFrame(frameBuffer);
 
 	for (auto i = 0u; i < CADT_VectorSize(textureWindows); ++i) {
-		auto textureWindow = *(TextureWindow**) CADT_VectorAt(textureWindows, i);
+		auto textureWindow = *(TextureWindow **) CADT_VectorAt(textureWindows, i);
 		ASSERT(textureWindow);
 		TextureViewer_RenderSetup(textureWindow->textureViewer, Render_FrameBufferGraphicsEncoder(frameBuffer));
 	}
@@ -374,19 +381,21 @@ static void Exit() {
 	MEMORY_FREE(lastFolder);
 
 	for (auto i = 0u; i < CADT_VectorSize(textureWindows); ++i) {
-		auto textureWindow = *(TextureWindow**) CADT_VectorAt(textureWindows, i);
+		auto textureWindow = *(TextureWindow **) CADT_VectorAt(textureWindows, i);
 		ASSERT(textureWindow);
-		TextureViewer_Destroy(textureWindow->textureViewer); textureWindow->textureViewer = nullptr;
-		if(textureWindow->textureToView.cpu) {
+		TextureViewer_Destroy(textureWindow->textureViewer);
+		textureWindow->textureViewer = nullptr;
+		if (textureWindow->textureToView.cpu) {
 			Image_Destroy(textureWindow->textureToView.cpu);
 			textureWindow->textureToView.cpu = nullptr;
 		}
-		if(textureWindow->textureToView.gpu) {
+		if (textureWindow->textureToView.gpu) {
 			Render_TextureDestroy(renderer, textureWindow->textureToView.gpu);
 			textureWindow->textureToView.gpu = nullptr;
 		}
 
-		TextureViewer_Destroy(textureWindow->textureViewer); textureWindow->textureViewer = nullptr;
+		TextureViewer_Destroy(textureWindow->textureViewer);
+		textureWindow->textureViewer = nullptr;
 	}
 	// no need to pop each element as destroying
 	CADT_VectorDestroy(textureWindows);
@@ -416,6 +425,17 @@ static void ProcessMsg(void *msg) {
 int main(int argc, char const *argv[]) {
 	auto logger = SimpleLogManager_Alloc();
 
+	fileToOpenQueue = CADT_VectorCreate(MAX_INPUT_PATH_LENGTH);
+	if (!fileToOpenQueue) {
+		SimpleLogManager_Free(logger);
+		return 11;
+	}
+
+	CADT_VectorReserve(fileToOpenQueue, argc - 1);
+	for (auto i = 0u; i < argc - 1; ++i) {
+		CADT_VectorPushElement(fileToOpenQueue, (void *) argv[1 + i]);
+	}
+
 	GameAppShell_Shell *shell = GameAppShell_Init();
 	shell->onInitCallback = &Init;
 	shell->onDisplayLoadCallback = &Load;
@@ -433,6 +453,8 @@ int main(int argc, char const *argv[]) {
 	shell->initialWindowDesc.visible = true;
 
 	auto ret = GameAppShell_MainLoop(argc, argv);
+
+	CADT_VectorDestroy(fileToOpenQueue);
 
 	SimpleLogManager_Free(logger);
 	return ret;
