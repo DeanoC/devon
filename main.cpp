@@ -25,6 +25,9 @@
 #include "texture_viewer.hpp"
 #include "about.h"
 
+static SimpleLogManager_Handle g_logger;
+static int g_returnCode;
+
 Render_RendererHandle renderer;
 Render_QueueHandle graphicsQueue;
 Render_FrameBufferHandle frameBuffer;
@@ -412,6 +415,14 @@ static void Exit() {
 
 	enkiDeleteTaskScheduler(taskScheduler);
 	Render_RendererDestroy(renderer);
+
+
+	CADT_VectorDestroy(fileToOpenQueue);
+
+	SimpleLogManager_Free(g_logger);
+
+	Memory_TrackerDestroyAndLogLeaks();
+
 }
 
 static void Abort() {
@@ -426,11 +437,11 @@ static void ProcessMsg(void *msg) {
 }
 
 int main(int argc, char const *argv[]) {
-	auto logger = SimpleLogManager_Alloc();
+	g_logger = SimpleLogManager_Alloc();
 
 	fileToOpenQueue = CADT_VectorCreate(MAX_INPUT_PATH_LENGTH);
 	if (!fileToOpenQueue) {
-		SimpleLogManager_Free(logger);
+		SimpleLogManager_Free(g_logger);
 		return 11;
 	}
 
@@ -455,11 +466,7 @@ int main(int argc, char const *argv[]) {
 	shell->initialWindowDesc.windowsFlags = 0;
 	shell->initialWindowDesc.visible = true;
 
-	auto ret = GameAppShell_MainLoop(argc, argv);
+	GameAppShell_MainLoop(argc, argv);
 
-	CADT_VectorDestroy(fileToOpenQueue);
-
-	SimpleLogManager_Free(logger);
-	return ret;
-
+	return 	g_returnCode;
 }
