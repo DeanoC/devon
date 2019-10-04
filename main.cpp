@@ -137,12 +137,15 @@ static void LoadTextureToView(char const *fileName, TextureWindow *tw) {
 		ASSERT(Image_HasPackedMipMaps(tw->textureToView.cpu));
 	}
 
+	static int uniqueHiddenNumber = 0;
+
 	char tmpbuffer[2048];
-	sprintf(tmpbuffer, "%s - %ix%i - %s - %s", fileName + startOfFileName,
+	sprintf(tmpbuffer, "%s - %ix%i - %s - %s ##%i", fileName + startOfFileName,
 					tw->textureToView.cpu->width,
 					tw->textureToView.cpu->height,
 					TinyImageFormat_Name(originalFormat),
-					supported ? "GPU" : "CPU"
+					supported ? "GPU" : "CPU",
+					uniqueHiddenNumber++
 	);
 
 	TextureViewer_SetWindowName(tw->textureViewer, tmpbuffer);
