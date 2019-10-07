@@ -1,0 +1,30 @@
+name: Build
+
+on: 
+  schedule:
+    - cron: '30 22 * * *' # 10:30 pm
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest] # TODO ubuntu-latest]
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: prepare
+      run: |
+        mkdir -p build
+        cd build
+        cmake ..
+    - name: build
+      run: |
+        cd build
+        cmake --build . --config Release -j 8
+    - name: Upload artifact
+      uses: actions/upload-artifact@v1.0.0
+      with:
+        name: out_bin_${{matrix.os}}
+        path: out_bin
