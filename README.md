@@ -2,7 +2,7 @@
 
 # Devon -Texture viewer using al2o3 and the-forge #
 
-Currently it can do 
+Currently it can view 
 
 Ordinary formats via @nothings stb. 
 
