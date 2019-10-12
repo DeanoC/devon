@@ -1,4 +1,4 @@
-![](https://github.com/DeanoC/devon/Build/badge.svg)
+![](https://github.com/DeanoC/devon/Nightly/badge.svg)
 
 # Devon -Texture viewer using al2o3 and the-forge #
 
