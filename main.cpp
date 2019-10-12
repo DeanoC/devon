@@ -277,10 +277,6 @@ static bool Init() {
 	textureWindowFreeList = CADT_FreeListCreate(sizeof(TextureWindow), MAX_TEXTURE_WINDOWS);
 	textureWindows = CADT_VectorCreate(sizeof(TextureWindow *));
 
-	return true;
-}
-
-static bool Load() {
 	while (!CADT_VectorIsEmpty(fileToOpenQueue)) {
 		char path[MAX_INPUT_PATH_LENGTH];
 		CADT_VectorPopElement(fileToOpenQueue, path);
@@ -289,6 +285,7 @@ static bool Load() {
 
 	return true;
 }
+
 
 static void Update(double deltaMS) {
 	GameAppShell_WindowDesc windowDesc;
@@ -302,8 +299,6 @@ static void Update(double deltaMS) {
 
 	Render_FrameBufferUpdate(frameBuffer,
 													 windowDesc.width, windowDesc.height,
-													 windowDesc.dpiBackingScale[0],
-													 windowDesc.dpiBackingScale[1],
 													 deltaMS);
 
 	ImGui::NewFrame();
@@ -373,16 +368,20 @@ static void Draw(double deltaMS) {
 	Render_FrameBufferPresent(frameBuffer);
 }
 
-static void Unload() {
-	LOGINFO("Unloading");
+static void Resize() {
+	GameAppShell_WindowDesc windowDesc;
+	GameAppShell_WindowGetCurrentDesc(&windowDesc);
+
+	Render_FrameBufferResize(frameBuffer, windowDesc.width, windowDesc.height);
+}
+
+
+static void Exit() {
+	LOGINFO("Exiting");
 
 	Render_QueueWaitIdle(graphicsQueue);
 
 	About_Close();
-}
-
-static void Exit() {
-	LOGINFO("Exiting");
 
 	MEMORY_FREE(lastFolder);
 
@@ -415,7 +414,6 @@ static void Exit() {
 
 	enkiDeleteTaskScheduler(taskScheduler);
 	Render_RendererDestroy(renderer);
-
 
 	CADT_VectorDestroy(fileToOpenQueue);
 
@@ -452,8 +450,7 @@ int main(int argc, char const *argv[]) {
 
 	GameAppShell_Shell *shell = GameAppShell_Init();
 	shell->onInitCallback = &Init;
-	shell->onDisplayLoadCallback = &Load;
-	shell->onDisplayUnloadCallback = &Unload;
+	shell->onDisplayResizeCallback = &Resize;
 	shell->onQuitCallback = &Exit;
 	shell->onAbortCallback = &Abort;
 	shell->perFrameUpdateCallback = &Update;
