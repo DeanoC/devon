@@ -265,7 +265,6 @@ static bool Init() {
 	fbDesc.frameBufferWidth = windowDesc.width;
 	fbDesc.frameBufferHeight = windowDesc.height;
 	fbDesc.colourFormat = TinyImageFormat_UNDEFINED;
-	fbDesc.depthFormat = TinyImageFormat_UNDEFINED;
 	fbDesc.embeddedImgui = true;
 	fbDesc.visualDebugTarget = true;
 	frameBuffer = Render_FrameBufferCreate(renderer, &fbDesc);
@@ -291,7 +290,6 @@ static void Update(double deltaMS) {
 	GameAppShell_WindowDesc windowDesc;
 	GameAppShell_WindowGetCurrentDesc(&windowDesc);
 
-	InputBasic_SetWindowSize(input, windowDesc.width, windowDesc.height);
 	InputBasic_Update(input, deltaMS);
 	if (InputBasic_GetAsBool(input, AppKey_Quit)) {
 		GameAppShell_Quit();
@@ -355,8 +353,6 @@ static void Update(double deltaMS) {
 
 static void Draw(double deltaMS) {
 
-	Render_RenderTargetHandle renderTargets[2] = {nullptr, nullptr};
-
 	Render_FrameBufferNewFrame(frameBuffer);
 
 	for (auto i = 0u; i < CADT_VectorSize(textureWindows); ++i) {
@@ -373,6 +369,7 @@ static void Resize() {
 	GameAppShell_WindowGetCurrentDesc(&windowDesc);
 
 	Render_FrameBufferResize(frameBuffer, windowDesc.width, windowDesc.height);
+	InputBasic_SetWindowSize(input, windowDesc.width, windowDesc.height);
 }
 
 
