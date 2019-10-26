@@ -68,10 +68,8 @@ static void LoadTextureToView(char const *fileName, TextureWindow *tw) {
 		Image_Destroy(tw->textureToView.cpu);
 		tw->textureToView.cpu = nullptr;
 	}
-	if (tw->textureToView.gpu != nullptr) {
-		Render_TextureDestroy(renderer, tw->textureToView.gpu);
-		tw->textureToView.gpu = nullptr;
-	}
+
+	Render_TextureDestroy(renderer, tw->textureToView.gpu);
 
 	size_t startOfFileName = 0;
 	size_t startOfFileNameExt = 0;
@@ -261,7 +259,6 @@ static bool Init() {
 	Render_FrameBufferDesc fbDesc{};
 	fbDesc.platformHandle = GameAppShell_GetPlatformWindowPtr();
 	fbDesc.queue = graphicsQueue = Render_RendererGetPrimaryQueue(renderer, Render_QT_GRAPHICS);
-	fbDesc.commandPool = Render_RendererGetPrimaryCommandPool(renderer, Render_QT_GRAPHICS);
 	fbDesc.frameBufferWidth = windowDesc.width;
 	fbDesc.frameBufferHeight = windowDesc.height;
 	fbDesc.colourFormat = TinyImageFormat_UNDEFINED;
@@ -331,10 +328,7 @@ static void Update(double deltaMS) {
 			textureWindow->textureToView.cpu = nullptr;
 		}
 
-		if (textureWindow->textureToView.gpu) {
-			Render_TextureDestroy(renderer, textureWindow->textureToView.gpu);
-			textureWindow->textureToView.gpu = nullptr;
-		}
+		Render_TextureDestroy(renderer, textureWindow->textureToView.gpu);
 
 		TextureViewer_Destroy(textureWindow->textureViewer);
 		textureWindow->textureViewer = nullptr;
@@ -391,10 +385,7 @@ static void Exit() {
 			Image_Destroy(textureWindow->textureToView.cpu);
 			textureWindow->textureToView.cpu = nullptr;
 		}
-		if (textureWindow->textureToView.gpu) {
-			Render_TextureDestroy(renderer, textureWindow->textureToView.gpu);
-			textureWindow->textureToView.gpu = nullptr;
-		}
+		Render_TextureDestroy(renderer, textureWindow->textureToView.gpu);
 
 		TextureViewer_Destroy(textureWindow->textureViewer);
 		textureWindow->textureViewer = nullptr;

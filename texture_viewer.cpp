@@ -36,7 +36,7 @@ struct TextureViewer {
 
 	Render_ShaderHandle shader;
 	Render_RootSignatureHandle rootSignature;
-	Render_GraphicsPipelineHandle pipeline;
+	Render_PipelineHandle pipeline;
 	Render_DescriptorSetHandle descriptorSet;
 	Render_BufferHandle uniformBuffer;
 
@@ -128,7 +128,8 @@ bool CreateShaders(TextureViewer *ctx) {
 	VFile_Close(vfile);
 	VFile_Close(ffile);
 
-	if (!shaderObjects[0] || !shaderObjects[1]) {
+	if (!Render_ShaderObjectHandleIsValid(shaderObjects[0]) ||
+			!Render_ShaderObjectHandleIsValid(shaderObjects[1])) {
 		Render_ShaderObjectDestroy(ctx->renderer, shaderObjects[0]);
 		Render_ShaderObjectDestroy(ctx->renderer, shaderObjects[1]);
 		return false;
@@ -174,7 +175,7 @@ TextureViewerHandle TextureViewer_Create(Render_RendererHandle renderer,
 	rootSignatureDesc.staticSamplerNames = staticSamplerNames;
 	rootSignatureDesc.staticSamplers = samplers;
 	ctx->rootSignature = Render_RootSignatureCreate(ctx->renderer, &rootSignatureDesc);
-	if (!ctx->rootSignature) {
+	if (!Render_RootSignatureHandleIsValid(ctx->rootSignature)) {
 		return nullptr;
 	}
 
@@ -194,7 +195,7 @@ TextureViewerHandle TextureViewer_Create(Render_RendererHandle renderer,
 	gfxPipeDesc.sampleQuality = 0;
 	gfxPipeDesc.primitiveTopo = Render_PT_TRI_LIST;
 	ctx->pipeline = Render_GraphicsPipelineCreate(ctx->renderer, &gfxPipeDesc);
-	if (!ctx->pipeline) {
+	if (!Render_PipelineHandleIsValid(ctx->pipeline)) {
 		return nullptr;
 	}
 
@@ -205,7 +206,7 @@ TextureViewerHandle TextureViewer_Create(Render_RendererHandle renderer,
 	};
 
 	ctx->descriptorSet = Render_DescriptorSetCreate(ctx->renderer, &setDesc);
-	if (!ctx->descriptorSet) {
+	if (!Render_DescriptorSetHandleIsValid(ctx->descriptorSet)) {
 		return nullptr;
 	}
 
@@ -215,7 +216,7 @@ TextureViewerHandle TextureViewer_Create(Render_RendererHandle renderer,
 	};
 
 	ctx->uniformBuffer = Render_BufferCreateUniform(ctx->renderer, &ubDesc);
-	if (!ctx->uniformBuffer) {
+	if (!Render_BufferHandleIsValid(ctx->uniformBuffer)) {
 		return nullptr;
 	}
 
@@ -243,31 +244,15 @@ void TextureViewer_Destroy(TextureViewerHandle handle) {
 
 	MEMORY_FREE(ctx->windowName);
 
-	if (ctx->dummy3DTexture) {
-		Render_TextureDestroy(ctx->renderer, ctx->dummy3DTexture);
-	}
-	if (ctx->dummy2DArrayTexture) {
-		Render_TextureDestroy(ctx->renderer, ctx->dummy2DArrayTexture);
-	}
-	if (ctx->dummy2DTexture) {
-		Render_TextureDestroy(ctx->renderer, ctx->dummy2DTexture);
-	}
+	Render_TextureDestroy(ctx->renderer, ctx->dummy3DTexture);
+	Render_TextureDestroy(ctx->renderer, ctx->dummy2DArrayTexture);
+	Render_TextureDestroy(ctx->renderer, ctx->dummy2DTexture);
 
-	if (ctx->uniformBuffer) {
-		Render_BufferDestroy(ctx->renderer, ctx->uniformBuffer);
-	}
-	if (ctx->descriptorSet) {
-		Render_DescriptorSetDestroy(ctx->renderer, ctx->descriptorSet);
-	}
-	if (ctx->pipeline) {
-		Render_GraphicsPipelineDestroy(ctx->renderer, ctx->pipeline);
-	}
-	if (ctx->rootSignature) {
-		Render_RootSignatureDestroy(ctx->renderer, ctx->rootSignature);
-	}
-	if (ctx->shader) {
-		Render_ShaderDestroy(ctx->renderer, ctx->shader);
-	}
+	Render_BufferDestroy(ctx->renderer, ctx->uniformBuffer);
+	Render_DescriptorSetDestroy(ctx->renderer, ctx->descriptorSet);
+	Render_PipelineDestroy(ctx->renderer, ctx->pipeline);
+	Render_RootSignatureDestroy(ctx->renderer, ctx->rootSignature);
+	Render_ShaderDestroy(ctx->renderer, ctx->shader);
 
 	MEMORY_FREE(ctx);
 }
