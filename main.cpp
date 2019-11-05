@@ -196,7 +196,7 @@ void LoadTexture(char const *fileName) {
 	if (textureWindow) {
 		textureWindow->textureViewer = TextureViewer_Create(renderer, frameBuffer);
 		if (!textureWindow->textureViewer) {
-			CADT_FreeListFree(textureWindowFreeList, textureWindow);
+			CADT_FreeListRelease(textureWindowFreeList, textureWindow);
 			LOGERROR("TextureViewer_Create failed");
 			return;
 		}
@@ -333,7 +333,7 @@ static void Update(double deltaMS) {
 		TextureViewer_Destroy(textureWindow->textureViewer);
 		textureWindow->textureViewer = nullptr;
 		CADT_VectorRemove(textureWindows, CADT_VectorFind(textureWindows, &textureWindow));
-		CADT_FreeListFree(textureWindowFreeList, textureWindow);
+		CADT_FreeListRelease(textureWindowFreeList, textureWindow);
 	}
 
 
