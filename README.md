@@ -49,6 +49,4 @@ Drag and Drop
 
 BC6H software decoder
 
-ECT2 software decoder
-
 ATC? decoder
